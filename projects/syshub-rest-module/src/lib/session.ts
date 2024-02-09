@@ -86,7 +86,7 @@ export class Session implements OAuthSession {
     this.refreshIsDue$.next(false);
     token.expiryTime = new Date(new Date(token.grantTime).setSeconds(token.grantTime.getSeconds(), token.expiresIn * 1000));
     this.sessiontoken = token;
-    localStorage.setItem(this.settings.oauth.storeKey!, JSON.stringify(token));
+    localStorage.setItem(this.settings.oauth.storeKey ?? 'syshub-token', JSON.stringify(token));
     this.token$.next(token.accessToken);
     this.validateToken();
   }
