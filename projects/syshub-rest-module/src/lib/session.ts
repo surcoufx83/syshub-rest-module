@@ -31,7 +31,7 @@ export class Session implements OAuthSession {
    */
   public clearToken(): void {
     this.sessiontoken = undefined;
-    localStorage.removeItem(this.settings.oauth.storeKey!);
+    localStorage.removeItem(this.settings.oauth.storeKey ?? 'authmod-session');
     this.loggedin$.next(false);
   }
 
@@ -55,7 +55,7 @@ export class Session implements OAuthSession {
    * Loads the session information from browser cache.
    */
   private loadToken(): void {
-    let store: Token | string | null = localStorage.getItem(this.settings.oauth.storeKey!);
+    let store: Token | string | null = localStorage.getItem(this.settings.oauth.storeKey ?? 'authmod-session');
     if (store != null) {
       store = <Token>(JSON.parse(<string>store));
       store.grantTime = new Date(store.grantTime);
