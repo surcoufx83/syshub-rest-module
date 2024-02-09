@@ -1442,7 +1442,7 @@ export class RestService {
   public login(username: string, password: string): BehaviorSubject<boolean | null | HttpErrorResponse> {
     const serv = this;
     let subject = new BehaviorSubject<boolean | null | HttpErrorResponse>(null);
-    let body: string = `grant_type=password&username=${username}&password=${password}&`
+    let body: string = `grant_type=password&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&`
       + `scope=${this.settings!.oauth.scope}&client_id=${this.settings!.oauth.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth.clientSecret!)}`;
     this.httpClient.post(`${this.settings!.host}webauth/oauth/token`, body, { observe: 'response' }).subscribe({
       next: (response) => {
