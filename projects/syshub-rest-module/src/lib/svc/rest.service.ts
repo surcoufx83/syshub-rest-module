@@ -39,6 +39,7 @@ import {
   SyshubUserlogEntryToCreate,
   SyshubWorkflow,
   SyshubWorkflowExecution,
+  SyshubWorkflowModel,
   SyshubWorkflowReference,
   SyshubWorkflowVersion
 } from '../types';
@@ -1274,6 +1275,29 @@ export class RestService {
     this.get(`workflows/execute`).subscribe((response) => {
       if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubWorkflowExecution[]>response.content);
+        subject.complete();
+      } else {
+        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
+        subject.complete();
+      }
+    });
+    return subject;
+  }
+
+  /**
+   * Returns the workflow definition as used by the workflow designer.
+   * This endpoint is not part of the official documentation so the functionality may break with any sysHUB update.
+   * @param uuid Uuid of the workflow.
+   * @returns *SyshubWorkflowModel*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
+   */
+  public getWorkflowModel(uuid: string): Observable<SyshubWorkflowModel | Error> {
+    let subject: Subject<SyshubWorkflowModel | Error> = new Subject<SyshubWorkflowModel | Error>();
+    if (!this.requirePrivateScope(subject))
+      return subject;
+    this.get(`workflow/${encodeURIComponent(uuid)}`).subscribe((response) => {
+      if (response.status == HttpStatusCode.Ok) {
+        subject.next(<SyshubWorkflowModel>response.content);
         subject.complete();
       } else {
         subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));

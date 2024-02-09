@@ -621,6 +621,28 @@ export type SyshubWorkflow = {
     uuid: string;
 }
 
+/** A sysHUB workflow object that is contained within the SyshubWorkflowModel */
+export type SyshubWorkflowExtended = {
+    activatedBy: string;
+    activatedTime: string | null;
+    author: string;
+    baseVersion: string;
+    cacheable: boolean;
+    /** category is string `empty` if no category is assigned */
+    category: string;
+    created: string;
+    description: string;
+    flag: string;
+    guid: string;
+    inheritLogLevel: boolean;
+    lockedBy: string | null;
+    logLevel: number;
+    modified: string | null;
+    name: string;
+    uuid: string;
+    version: string;
+}
+
 /** A sysHUB workflow execution object holding workflow execution parameters and feedback */
 export type SyshubWorkflowExecution = {
     /** Workflow asynchronous execution mode. */
@@ -652,6 +674,183 @@ export type SyshubWorkflowExecution = {
 
     /** Executed workflow unique id */
     workflowUuid: string;
+}
+
+/** A sysHUB workflow model that reflects the visible part of the workflow definition */
+export type SyshubWorkflowModel = {
+    class: 'GraphLinksModel';
+    copiesKey: boolean;
+    linkDataArray: GraphModelLink[];
+    linkFromPortIdProperty: 'fromPort';
+    linkToPortIdProperty: 'toPort';
+    modelData: SyshubWorkflowExtended;
+    nodeDataArray: (GraphModelAnnotationObject | GraphModelDecisionObject | GraphModelProcessObject | GraphModelStartObject)[];
+}
+
+/** This object defines a workflow element of type Process */
+export type GraphModelAnnotationObject = {
+    category: 'annotation';
+    /** Background color in format `rgb(226,253,175)` */
+    color: string;
+    /** Text color in format `rgb(0,0,0)` */
+    colorText: string;
+    /** Unique id */
+    key: string;
+    /** The label is automatically generated from the designer. It is visible in the elements properties but not in the workflow itself. */
+    label: string;
+    /** Element location x,y as space-separated string like `170 30` */
+    loc: string;
+    /** Element location width,height as space-separated string like `292 74` */
+    size: string;
+    /** The text content of the annotation */
+    text: string;
+    /** z-index of the element */
+    zOrder: number;
+}
+
+/** This object defines a workflow element of type Decision */
+export type GraphModelDecisionObject = {
+    category: 'decision';
+    /** The category description; empty if no category is assigned to the decision */
+    categoryDesc: string;
+    /** The category name; empty if no category is assigned to the decision */
+    categoryName: string;
+    /** The category uuid; `not set` if no category is assigned to the decision */
+    categoryUuid: string;
+    /** The java method name */
+    command: string;
+    /** Decision description as defined in the designer. */
+    description: string;
+    /** Defines whether this element is a local copy of the decision */
+    isGlobal: boolean;
+    /** Unique id */
+    key: string;
+    /** The label is automatically generated from the designer. It is visible in the elements properties but not in the workflow itself. */
+    label: string;
+    /** Element location x,y as space-separated string like `170 30` */
+    loc: string;
+    /** Decision name */
+    name: string;
+    /** Contains the path of the PSet entry assigned to the decision. It's undefined if no PSet is assigned. */
+    parameterSetPath?: string;
+    /** If decision has a parameterset path assigned, this reflects the PSet uuid. It's null if no PSet is assigned. */
+    parameterSetUuid: string | null;
+    /** Contains a semi-colon separated list of parameters of the decision. Parameters that are blank will not be included in this property. This list is blank if no parameter is set and will always end with a semi-colon if at least one parameter has been filled. */
+    parameters: string;
+    /** The uuid of the global decision definition */
+    uuid: string;
+    /** z-index of the element */
+    zOrder: number;
+    _maturity?: 'PRODUCTION' | 'DEPRECATED';
+    _maturityText?: string | null;
+}
+
+/** This object defines a workflow element of type Process */
+export type GraphModelProcessObject = {
+    category: 'process';
+    /** The category description; empty if no category is assigned to the process */
+    categoryDesc: string;
+    /** The category name; empty if no category is assigned to the process */
+    categoryName: string;
+    /** The category uuid; `not set` if no category is assigned to the process */
+    categoryUuid: string;
+    /** The java method name, the uuid of a beanshell script or the native command */
+    command: string;
+    /** Process description as defined in the designer. */
+    description: string;
+    /** Defines whether this element is a local copy of the process */
+    isGlobal: boolean;
+    /** Defines whether this element processes in a loop */
+    isLoop: boolean;
+    /** Unique id */
+    key: string;
+    /** The label is automatically generated from the designer. It is visible in the elements properties but not in the workflow itself. */
+    label: string;
+    /** Element location x,y as space-separated string like `170 30` */
+    loc: string;
+    /** The loop name if it is a loop process. */
+    loopName: string;
+    /** The maximum execution time in seconds. */
+    maxTime: number;
+    /** Process name */
+    name: string;
+    /** Contains the path of the PSet entry assigned to the process. It's undefined if no PSet is assigned. */
+    parameterSetPath?: string;
+    /** If process has a parameterset path assigned, this reflects the PSet uuid. It's null if no PSet is assigned. */
+    parameterSetUuid: string | null;
+    /** Contains a semi-colon separated list of parameters of the process. Parameters that are blank will not be included in this property. This list is blank if no parameter is set and will always end with a semi-colon if at least one parameter has been filled. */
+    parameters: string;
+    /** The type of process */
+    type: 'class' | 'bsh' | 'native';
+    /** The uuid of the global process definition */
+    uuid: string;
+    /** z-index of the element */
+    zOrder: number;
+    _maturity?: 'PRODUCTION' | 'DEPRECATED';
+    _maturityText?: string | null;
+}
+
+/** This object defines a workflow element of type Start */
+export type GraphModelStartObject = {
+    category: 'start';
+    debugQueue: any;
+    /** Unique id */
+    key: string;
+    /** The startpoint name */
+    label: string;
+    /** Element location x,y as space-separated string like `170 30` */
+    loc: string;
+    /** If set, a semi-colon separated list of user roles with ending semi-colon like `ROLE_ADMIN;ROLE_AGENT;` */
+    roles?: string;
+    /** Used for numbering start points */
+    startOrder: number;
+}
+
+/** This object defines a workflow element of type Workflow call */
+export type GraphModelWorkflowObject = {
+    agent: string;
+    category: 'workflow';
+    /** Defines whether this element processes in a loop */
+    isLoop: boolean;
+    /** Unique id */
+    key: string;
+    /** The label is automatically generated from the designer. It is visible in the elements properties but not in the workflow itself. */
+    label: string;
+    /** Element location x,y as space-separated string like `170 30` */
+    loc: string;
+    /** The loop name if it is a loop workflow call. */
+    loopName: string;
+    /** Name of the workflow to call */
+    refName: string;
+    /** Description of the workflow to call */
+    refShortDesc: string;
+    /** Uuid of the workflow to call */
+    refUuid: string;
+    /** Start point of the referenced workflow */
+    startPoint: string;
+    /** Only available if set to be processed with multiple threads */
+    threadCount?: number;
+    /** Thread name if parallel processing is activated */
+    threadName?: string;
+    /** z-index of the element */
+    zOrder: number;
+}
+
+/** This object defines a connection from one workflow element to another. */
+export type GraphModelLink = {
+    breakpoint?: boolean;
+    /** Category of the link is only set if it's result of the decision or an error connector. */
+    category?: 'decision' | 'error';
+    /** The connector description which is available for decision connectors only */
+    description?: 'Yes' | 'No';
+    /** Target elements key (unique id) */
+    from: string;
+    /** The position at the start element, where this connector starts. */
+    fromPort: 'r' | 'b' | 'l';
+    /** Target elements key (unique id) */
+    to: string;
+    /** The position at the target element, where this connector ends (always at the top).*/
+    toPort: 't';
 }
 
 /** A sysHUB workflow reference object */

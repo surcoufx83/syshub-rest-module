@@ -5,34 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.3] - ongoing
+## [3.3.0] - ongoing
+
+### Added
+
+- Added the new method `getWorkflowModel(uuid: string)` to retrieve a workflows graph model as defined by tge workflow designer
+
+### Fixed
+
 - Fixed a bug where session key in localstorage is undefined
 
 ## [3.2.2] - 2024-02-09
+
+### Fixed
+
 - Fixed bug that prevented login with some special characters like `&` that break parameters in urls
 
 ## [3.2.1] - 2024-02-08
+
+### Fixed
+
 - Removed debug code
 
 ## [3.2.0] - 2024-02-08
+
+### Changed
+
 - Improved error handling: In case that the server does not respond at all the Rest API returns a new error `NetworkError`. This informs the caller that the server is not available and enables it to handle this special case.
 
 ## [3.1.0] - 2024-02-06
+
+### Changed
+
 - Improved error handling: In the previous behavior, the Rest API was called even if the configured scope did not match the requirements for the endpoint and `throwErrors` was not set. Now an error object is returned.
   If `throwErrors` is set, the error is still thrown.
 - Improved generalization: Repetitive code blocks have been moved to more generalized methods and reused.
 
 ## [3.0.3] - 2024-01-29
+
+### Changed
+
 - Changed `modifiedtime` property to type `string | number | null` for `SyshubConfigItem` and `SyshubPSetItem` as Rest API returns ISO string as of sysHUB 2023
 
 ## [3.0.2] - 2024-01-25
+
+### Added
+
 - Added methods `getJobType(uuid: string)` and `getJobTypes()`
 
 ## [3.0.1] - 2023-12-08
+
+### Changed
+
 - Add a token refresh after 401/Unauthorized response. If it fails, user will be logged out.
 - In this case, Rest functions will return an `UnauthorizedError`. You may not show an error message in this case and wait for the refreshed toekn (or logout).
 
 ## [3.0.0] - 2023-12-07
+
+### Changed
+
 - Fixed issue with permanent token refresh.
 - Update peer dependencies to Angular 17.
 
