@@ -684,11 +684,12 @@ export type SyshubWorkflowModel = {
     linkFromPortIdProperty: 'fromPort';
     linkToPortIdProperty: 'toPort';
     modelData: SyshubWorkflowExtended;
-    nodeDataArray: (GraphModelAnnotationObject | GraphModelDecisionObject | GraphModelProcessObject | GraphModelStartObject)[];
+    nodeDataArray: (GraphModelAnnotationObject | GraphModelDecisionObject | GraphModelEndObject | GraphModelProcessObject | GraphModelStartObject)[];
 }
 
 /** This object defines a workflow element of type Process */
 export type GraphModelAnnotationObject = {
+    /** Category, always `annotation` */
     category: 'annotation';
     /** Background color in format `rgb(226,253,175)` */
     color: string;
@@ -708,8 +709,45 @@ export type GraphModelAnnotationObject = {
     zOrder: number;
 }
 
+/** This object defines a workflow element of type cElement */
+export type GraphModelCElementObject = {
+    /** Agent who runs the cElement */
+    agent: string;
+    /** Category, always `celement` */
+    category: 'celement';
+    /** cElement instance to be used for execution */
+    instanceName: string;
+    /** Unique id */
+    key: string;
+    /** The cElement name */
+    label: string;
+    /** Contains internal identifier for license checks */
+    licenseName: string;
+    /** Element location x,y as space-separated string like `170 30` */
+    loc: string;
+    /** Namespace where the functionality is to be located */
+    nameSpace: string;
+    /** cElement process name */
+    refName: string;
+    /** Description of the cElement workflow to call */
+    refShortDesc: string;
+    /** Uuid of the cElement workflow to call */
+    refUuid: string;
+    /** Start point of the referenced cElement workflow */
+    startUuid: string;
+    /** Contains additional parameters */
+    variable: string;
+    /** Creator of the cElement */
+    vendor: string;
+    /** Version of the cElement */
+    version: string;
+    /** z-index of the element */
+    zOrder: number;
+}
+
 /** This object defines a workflow element of type Decision */
 export type GraphModelDecisionObject = {
+    /** Category, always `decision` */
     category: 'decision';
     /** The category description; empty if no category is assigned to the decision */
     categoryDesc: string;
@@ -745,8 +783,21 @@ export type GraphModelDecisionObject = {
     _maturityText?: string | null;
 }
 
+/** This object defines a workflow element of type End */
+export type GraphModelEndObject = {
+    /** Category, always `end` */
+    category: 'end';
+    /** Unique id */
+    key: string;
+    /** The startpoint name */
+    label: string;
+    /** Element location x,y as space-separated string like `170 30` */
+    loc: string;
+}
+
 /** This object defines a workflow element of type Process */
 export type GraphModelProcessObject = {
+    /** Category, always `process` */
     category: 'process';
     /** The category description; empty if no category is assigned to the process */
     categoryDesc: string;
@@ -792,8 +843,10 @@ export type GraphModelProcessObject = {
 
 /** This object defines a workflow element of type Start */
 export type GraphModelStartObject = {
+    /** Category, always `start` */
     category: 'start';
-    debugQueue: any;
+    /** Used for native or webclient debugging */
+    debugQueue?: any;
     /** Unique id */
     key: string;
     /** The startpoint name */
@@ -808,7 +861,9 @@ export type GraphModelStartObject = {
 
 /** This object defines a workflow element of type Workflow call */
 export type GraphModelWorkflowObject = {
+    /** Agent who runs the workflow */
     agent: string;
+    /** Category, always `workflow` */
     category: 'workflow';
     /** Defines whether this element processes in a loop */
     isLoop: boolean;
@@ -838,6 +893,7 @@ export type GraphModelWorkflowObject = {
 
 /** This object defines a connection from one workflow element to another. */
 export type GraphModelLink = {
+    /** Whether breakpoint has been set for this connection */
     breakpoint?: boolean;
     /** Category of the link is only set if it's result of the decision or an error connector. */
     category?: 'decision' | 'error';
