@@ -914,7 +914,7 @@ export type SyshubWorkflowReference = {
     description: string | null;
     name: string;
     appears: string;
-    type: 'Config' | 'Parameterset' | 'Workflow';
+    type: 'Config' | 'JobType' | 'Parameterset' | 'Workflow';
 }
 
 /** A sysHUB workflow versioning object */
