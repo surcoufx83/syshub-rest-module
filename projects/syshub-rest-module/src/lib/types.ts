@@ -712,7 +712,7 @@ export type GraphModelAnnotationObject = {
 /** This object defines a workflow element of type cElement */
 export type GraphModelCElementObject = {
     /** Agent who runs the cElement */
-    agent: string;
+    agent: string | null;
     /** Category, always `celement` */
     category: 'celement';
     /** cElement instance to be used for execution */
@@ -862,7 +862,7 @@ export type GraphModelStartObject = {
 /** This object defines a workflow element of type Workflow call */
 export type GraphModelWorkflowObject = {
     /** Agent who runs the workflow */
-    agent: string;
+    agent: string | null;
     /** Category, always `workflow` */
     category: 'workflow';
     /** Defines whether this element processes in a loop */
