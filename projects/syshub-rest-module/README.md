@@ -21,7 +21,7 @@ For projects using older versions of Angular, please refer to the table below to
 
 | Angular version | Syshub Rest Module version | install cmd                   |
 | :-------------- | :------------------------- | :---------------------------- |
-| 17.x            | 3.x                        | `npm i syshub-rest-module@^3` |
+| 17.x            | 4.x (or 3.x)               | `npm i syshub-rest-module@^4` |
 | 16.x            | 2.x                        | `npm i syshub-rest-module@^2` |
 
 ### Configuration
