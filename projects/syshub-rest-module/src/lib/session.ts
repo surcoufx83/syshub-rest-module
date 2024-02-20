@@ -71,8 +71,7 @@ export class Session implements OAuthSession {
    * Rest API is informed to refresh the token.
    */
   private refreshToken(): void {
-    if (this.timeout)
-      clearTimeout(this.timeout);
+    clearTimeout(this.timeout);
     let nextcall = this.loggedin$.value ? (this.sessiontoken?.expiryTime?.getTime() ?? Date.now() + 10) - Date.now() - 2500 : 10;
     nextcall = nextcall < 0 ? 1 : nextcall > 3600000 ? 3600000 : nextcall;
     this.timeout = setTimeout(() => {
