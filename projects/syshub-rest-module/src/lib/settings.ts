@@ -6,7 +6,6 @@ export class Settings {
 
     constructor(private settings: BasicRestSettings | OAuthRestSettings) {
         this.isbasic = Object.keys(settings).includes('basic') && (!Object.keys(settings).includes('oauth') || (<any>settings).basic?.enabled === true);
-        console.log(this.isbasic, settings)
         this.validate();
         this.valid$ = true;
     }
