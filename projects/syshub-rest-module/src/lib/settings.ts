@@ -60,8 +60,6 @@ export class Settings {
 
         this.isbasic = Object.keys(this.settings).includes('basic');
 
-        console.log(this.settings, this.isbasic)
-
         // Check 2 - sysHUB host must never be empty or undefined
         if (this.settings.host == undefined || this.settings.host == null || this.settings.host == '')
             throw new Error('E3 - Missing \'host\' property in REST API settings.');
