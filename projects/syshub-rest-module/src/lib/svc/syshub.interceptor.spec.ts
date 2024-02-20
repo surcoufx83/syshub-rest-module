@@ -1,15 +1,27 @@
-import { TestBed } from '@angular/core/testing';
 import { SyshubInterceptor } from './syshub.interceptor';
+import { Settings } from '../settings';
+import { RestService } from './rest.service';
 
 describe('SyshubInterceptor', () => {
-  /* beforeEach(() => TestBed.configureTestingModule({
-    providers: [
-      SyshubInterceptor
-    ]
-  })); */
+
+  let mockSettings = {
+    useBasicAuth: true,
+    useOAuth: false,
+    basic: {
+      username: 'mock-username',
+      password: 'mock-password',
+      provider: 'mock-provider',
+    },
+  };
+
+  let mockRestService = {
+    getAccessToken: jasmine.createSpy('getAccessToken'),
+    getIsLoggedIn: jasmine.createSpy('getIsLoggedIn'),
+  };
 
   it('should be created', () => {
-    //const interceptor: SyshubInterceptor = TestBed.inject(SyshubInterceptor);
-    //expect(interceptor).toBeTruthy();
+    const interceptorInstance: SyshubInterceptor = new SyshubInterceptor(<Settings><any>mockSettings, <RestService><any>mockRestService);
+    expect(interceptorInstance).toBeTruthy();
   });
+
 });

@@ -1,16 +1,25 @@
-import { TestBed } from '@angular/core/testing';
-
 import { RestService } from './rest.service';
+import { Settings } from '../settings';
+import { HttpClient } from '@angular/common/http';
 
 describe('RestService', () => {
-  /* let service: RestService;
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(RestService);
-  });
-*/
+  let mockSettings = {
+    useBasicAuth: true,
+    useOAuth: false,
+    basic: {
+      username: 'mock-username',
+      password: 'mock-password',
+      provider: 'mock-provider',
+    },
+  };
+
+  let mockHttpClient = {
+
+  };
+
   it('should be created', () => {
-    //  expect(service).toBeTruthy();
+    const serviceInstance: RestService = new RestService(<Settings><any>mockSettings, <HttpClient><any>mockHttpClient);
+    expect(serviceInstance).toBeTruthy();
   });
 });
