@@ -1,3 +1,6 @@
+[![Node.js CI](https://github.com/surcoufx83/syshub-rest-module/actions/workflows/node.js.yml/badge.svg)](https://github.com/surcoufx83/syshub-rest-module/actions/workflows/node.js.yml)
+[![codecov](https://codecov.io/gh/surcoufx83/syshub-rest-module/graph/badge.svg?token=Y1R57GV3ZD)](https://codecov.io/gh/surcoufx83/syshub-rest-module)
+
 # Syshub Rest Module
 
 The **syshub-rest-module** provides an encapsulated module for communication between an Angular single-page application (SPA) and an NT-Ware uniFLOW sysHUB server. Communication takes place via the OAuth2-based rest interface provided by the sysHUB server, optionally via basic authentication.
