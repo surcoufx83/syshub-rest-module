@@ -35,6 +35,8 @@ export class Session implements OAuthSession {
     this.sessiontoken = undefined;
     localStorage.removeItem(this.settings.oauth.storeKey ?? 'authmod-session');
     this.loggedin$.next(false);
+    this.token$.next('');
+    this.refreshIsDue$.next(false);
   }
 
   /**
