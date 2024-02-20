@@ -1,11 +1,10 @@
 
 export class Settings {
 
-    private isbasic: boolean;
+    private isbasic: boolean = true;
     private valid$: boolean = false;
 
     constructor(private settings: BasicRestSettings | OAuthRestSettings) {
-        this.isbasic = Object.keys(settings).includes('basic') && (!Object.keys(settings).includes('oauth') || (<any>settings).basic?.enabled === true);
         this.validate();
         this.valid$ = true;
     }
@@ -23,7 +22,7 @@ export class Settings {
     }
 
     public get oauth(): OAuthConnectionSettings | null {
-        return this.isbasic ? (<OAuthRestSettings>this.settings).oauth : null;
+        return !this.isbasic ? (<OAuthRestSettings>this.settings).oauth : null;
     }
 
     public get options(): RestOptionsSettings {
@@ -51,13 +50,21 @@ export class Settings {
     }
 
     private validate(): void {
-        // Check 1 - settings must not be undefined or null 
-        if (this.settings == undefined || this.settings == null)
+        // Check - settings must not be undefined or null 
+        if (!this.settings || this.settings == undefined || this.settings == null)
             throw new Error('E1 - Provided settings for REST API module are undefined or null.');
+
+        // Check that either basic or oauth exists
+        if (!Object.keys(this.settings).includes('basic') && !Object.keys(this.settings).includes('oauth'))
+            throw new Error('E2 - Missing \'basic\' or \'oauth\' property in REST API settings.');
+
+        this.isbasic = Object.keys(this.settings).includes('basic');
+
+        console.log(this.settings, this.isbasic)
 
         // Check 2 - sysHUB host must never be empty or undefined
         if (this.settings.host == undefined || this.settings.host == null || this.settings.host == '')
-            throw new Error('E2 - Missing \'host\' property in REST API settings.');
+            throw new Error('E3 - Missing \'host\' property in REST API settings.');
 
         // Assign default server version
         if (this.settings.version == undefined)
@@ -77,8 +84,6 @@ export class Settings {
         else
             this.validateOAuth(<OAuthRestSettings>this.settings);
 
-
-
         // Create default options if not set
         if (this.settings.options == undefined)
             this.settings.options = { autoConnect: true, autoLogoutOn401: true };
@@ -97,9 +102,6 @@ export class Settings {
     }
 
     private validateBasicAuth(settings: BasicRestSettings): void {
-        // If basic property is missing, error
-        if (settings.basic == undefined || settings.basic == null)
-            throw new Error('E3 - Missing \'basic\' property in REST API settings.');
 
         // Checks for enabled basic auth
         if (settings.basic.enabled !== true)
@@ -120,21 +122,17 @@ export class Settings {
     }
 
     private validateOAuth(settings: OAuthRestSettings): void {
-        // If oauth property is missing, error
-        if (settings.oauth == undefined || settings.oauth == null)
-            throw new Error('E8 - Missing \'oauth\' property in REST API settings.');
-
         // Checks for enabled oauth
         if (settings.oauth.enabled !== true)
-            throw new Error('E9 - \'basic.enabled\' property must be set as enabled in REST API settings.');
+            throw new Error('E8 - \'basic.enabled\' property must be set as enabled in REST API settings.');
 
         // Check - clientId must be set and not empty
         if (settings.oauth.clientId == undefined || settings.oauth.clientId == null || settings.oauth.clientId == '')
-            throw new Error('E10 - Missing \'oauth.clientId\' property in REST API settings.');
+            throw new Error('E9 - Missing \'oauth.clientId\' property in REST API settings.');
 
         // Check - clientSecret must be set and not empty
         if (settings.oauth.clientSecret == undefined || settings.oauth.clientSecret == null || settings.oauth.clientSecret == '')
-            throw new Error('E11 - Missing \'oauth.clientSecret\' property in REST API settings.');
+            throw new Error('E10 - Missing \'oauth.clientSecret\' property in REST API settings.');
 
         // If scope is not set use default public
         if (settings.oauth.scope == undefined || settings.oauth.scope == null)
