@@ -28,6 +28,8 @@
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
             "tsConfig": "projects/syshub-rest-module/tsconfig.spec.json",
+            "karmaConfig": "projects/syshub-rest-module/karma.conf.js",
+            "codeCoverage": true,
             "polyfills": [
               "zone.js",
               "zone.js/testing"

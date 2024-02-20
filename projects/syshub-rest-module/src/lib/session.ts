@@ -30,6 +30,8 @@ export class Session implements OAuthSession {
    * Removes any old session information to handle user logout
    */
   public clearToken(): void {
+    if (this.settings.basic.enabled === true)
+      return;
     this.sessiontoken = undefined;
     localStorage.removeItem(this.settings.oauth.storeKey ?? 'authmod-session');
     this.loggedin$.next(false);
@@ -83,6 +85,8 @@ export class Session implements OAuthSession {
    * @param token A Token object.
    */
   public setToken(token: Token): void {
+    if (this.settings.basic.enabled === true)
+      return;
     this.refreshIsDue$.next(false);
     token.expiryTime = new Date(new Date(token.grantTime).setSeconds(token.grantTime.getSeconds(), token.expiresIn * 1000));
     this.sessiontoken = token;
