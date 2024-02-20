@@ -44,4 +44,4 @@ jobs:
       with:
         directory: ./coverage/
         token: ${{ secrets.CODECOV_TOKEN }}
-        slug: surcoufx83/sysHUB-Findr
+        slug: surcoufx83/syshub-rest-module
