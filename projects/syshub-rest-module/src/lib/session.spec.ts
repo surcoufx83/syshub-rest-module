@@ -1,37 +1,56 @@
-import { async, fakeAsync, flush, tick, waitForAsync } from '@angular/core/testing';
+import { fakeAsync, flush, tick, waitForAsync } from '@angular/core/testing';
 import { Session, Token } from './session';
-import { Subscription, delay } from 'rxjs';
+import { Subscription } from 'rxjs';
 
 describe('Session (Basic auth)', () => {
 
   let mockSettingsBasic = {
     basic: {
       enabled: true,
-    }
+    },
+    useBasicAuth: true,
+    useOAuth: false,
   };
 
   let sessionInstance: Session;
+  let subs: Subscription[] = [];
 
-  beforeEach(waitForAsync(() => {
+  let isLoggedInResult: boolean | undefined;
+  let refreshIsDueResult: boolean | undefined;
+  let tokenResult: string | undefined;
+
+  beforeEach(fakeAsync(() => {
+    subs = [];
     sessionInstance = new Session(<any>mockSettingsBasic);
+    subs.push(sessionInstance.isLoggedIn.subscribe((state) => isLoggedInResult = state));
+    subs.push(sessionInstance.refreshIsDue.subscribe((state) => refreshIsDueResult = state));
+    subs.push(sessionInstance.token.subscribe((state) => tokenResult = state));
+    tick(10);
+    flush();
   }));
+
+  afterEach(() => {
+    subs.forEach((sub) => sub.unsubscribe());
+  })
 
   it('should create an instance', () => {
     expect(sessionInstance).toBeTruthy();
   });
 
-  it('should have logged in value true', waitForAsync(() => {
-    sessionInstance.isLoggedIn.subscribe(value => expect(value).withContext('isLoggedIn always true for basic auth').toBeTrue());
-  }));
+  it('should have logged in value true', () => {
+    expect(isLoggedInResult).withContext('isLoggedIn always true for basic auth').toBeTrue();
+  });
 
-  it('should stay loggedin after clearToken()', waitForAsync(() => {
+  it('should stay loggedin after clearToken()', fakeAsync(() => {
     sessionInstance.clearToken();
-    sessionInstance.isLoggedIn.subscribe(value => expect(value).withContext('isLoggedIn always true for basic auth').toBeTrue()).unsubscribe();
+    tick(100);
+    expect(isLoggedInResult).withContext('isLoggedIn always true for basic auth').toBeTrue();
   }));
 
-  it('should stay loggedin after setToken()', waitForAsync(() => {
+  it('should stay loggedin after setToken()', fakeAsync(() => {
     sessionInstance.setToken(<any>{});
-    sessionInstance.isLoggedIn.subscribe(value => expect(value).withContext('isLoggedIn always true for basic auth').toBeTrue()).unsubscribe();
+    tick(100);
+    expect(isLoggedInResult).withContext('isLoggedIn always true for basic auth').toBeTrue();
   }));
 
   it('should return correct session infos', () => {
@@ -44,12 +63,11 @@ describe('Session (Basic auth)', () => {
 describe('Session (OAuth) with existing session', () => {
 
   let mockSettingsOAuth = {
-    basic: {
-      enabled: false,
-    },
     oauth: {
       enabled: true,
-    }
+    },
+    useBasicAuth: false,
+    useOAuth: true,
   };
 
   let token: Token = {
@@ -73,9 +91,9 @@ describe('Session (OAuth) with existing session', () => {
     subs = [];
     localStorage.setItem('authmod-session', JSON.stringify(token))
     sessionInstance = new Session(<any>mockSettingsOAuth);
-    subs.push(sessionInstance.isLoggedIn.subscribe((state) => { console.log('isLoggedIn', state); isLoggedInResult = state }));
-    subs.push(sessionInstance.refreshIsDue.subscribe((state) => { console.log('refreshIsDue', state); refreshIsDueResult = state }));
-    subs.push(sessionInstance.token.subscribe((state) => { console.log('token', state); tokenResult = state }));
+    subs.push(sessionInstance.isLoggedIn.subscribe((state) => isLoggedInResult = state));
+    subs.push(sessionInstance.refreshIsDue.subscribe((state) => refreshIsDueResult = state));
+    subs.push(sessionInstance.token.subscribe((state) => tokenResult = state));
     tick(10);
     flush();
   }));

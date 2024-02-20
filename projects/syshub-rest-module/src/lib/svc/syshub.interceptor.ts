@@ -9,9 +9,12 @@ import { RestService } from './rest.service';
 @Injectable()
 export class SyshubInterceptor implements HttpInterceptor {
 
-  private basictoken = window.btoa(`${this.settings.basic.username}:${this.settings.basic.password}`);
+  private basictoken = '';
 
-  constructor(private settings: Settings, private restService: RestService) { }
+  constructor(private settings: Settings, private restService: RestService) {
+    if (settings.useBasicAuth)
+      this.basictoken = window.btoa(`${this.settings.basic!.username}:${this.settings.basic!.password}`);
+  }
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     /**
@@ -37,7 +40,7 @@ export class SyshubInterceptor implements HttpInterceptor {
      *   Add Bearer token as authorization header
      *   Content type is set to json if not yet defined
      */
-    if (this.restService.getIsLoggedIn() && this.settings.oauth.enabled) {
+    if (this.restService.getIsLoggedIn() && this.settings.useOAuth) {
       const clonedRequest = request.clone({
         headers: request.headers
           .set('Authorization', `Bearer ${this.restService.getAccessToken()}`)
@@ -51,11 +54,11 @@ export class SyshubInterceptor implements HttpInterceptor {
      *   Set Basic authorization header and provider
      *   Content type is set to json if not yet defined
      */
-    if (this.settings.basic.enabled) {
+    if (this.settings.useBasicAuth) {
       const clonedRequest = request.clone({
         headers: request.headers
           .set('Authorization', 'Basic ' + this.basictoken)
-          .set('AuthProvider', this.settings.basic.provider!)
+          .set('AuthProvider', this.settings.basic!.provider)
           .set('Content-Type', 'application/json')
       });
       return next.handle(clonedRequest);
@@ -78,7 +81,7 @@ export class SyshubInterceptor implements HttpInterceptor {
      *   Add Bearer token as authorization header
      *   Content type is set to json if not yet defined
      */
-    if (this.restService.getIsLoggedIn() && this.settings.oauth.enabled) {
+    if (this.restService.getIsLoggedIn() && this.settings.useOAuth) {
       const clonedRequest = request.clone({
         headers: request.headers
           .set('Authorization', `Bearer ${this.restService.getAccessToken()}`)
@@ -91,11 +94,11 @@ export class SyshubInterceptor implements HttpInterceptor {
      *   Set Basic authorization header and provider
      *   Content type is set to json if not yet defined
      */
-    if (this.settings.basic.enabled) {
+    if (this.settings.useBasicAuth) {
       const clonedRequest = request.clone({
         headers: request.headers
           .set('Authorization', 'Basic ' + this.basictoken)
-          .set('AuthProvider', this.settings.basic.provider!)
+          .set('AuthProvider', this.settings.basic!.provider)
       });
       return next.handle(clonedRequest);
     }

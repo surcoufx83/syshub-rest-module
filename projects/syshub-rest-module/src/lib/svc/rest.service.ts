@@ -1448,12 +1448,12 @@ export class RestService {
 
   /** Returns whether the internal Rest API endpoints are allowed. */
   private get isInternalRestApiAllowed(): boolean {
-    return this.settings.basic.enabled || (this.settings.oauth.scope !== undefined && this.settings.oauth.scope.indexOf('private') > -1);
+    return this.settings.useBasicAuth || (this.settings.oauth!.scope !== undefined && this.settings.oauth!.scope.indexOf('private') > -1);
   }
 
   /** Returns whether the public Rest API endpoints are allowed. */
   private get isPublicRestApiAllowed(): boolean {
-    return this.settings.basic.enabled || (this.settings.oauth.scope !== undefined && this.settings.oauth.scope.indexOf('public') > -1);
+    return this.settings.useBasicAuth || (this.settings.oauth!.scope !== undefined && this.settings.oauth!.scope.indexOf('public') > -1);
   }
 
   /**
@@ -1466,8 +1466,11 @@ export class RestService {
   public login(username: string, password: string): BehaviorSubject<boolean | null | HttpErrorResponse> {
     const serv = this;
     let subject = new BehaviorSubject<boolean | null | HttpErrorResponse>(null);
+    if (!this.settings.useOAuth) {
+      throw new Error('Method sendOAuthRefresh not allowed for basic authentication')
+    }
     let body: string = `grant_type=password&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&`
-      + `scope=${this.settings!.oauth.scope}&client_id=${this.settings!.oauth.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth.clientSecret!)}`;
+      + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
     this.httpClient.post(`${this.settings!.host}webauth/oauth/token`, body, { observe: 'response' }).subscribe({
       next: (response) => {
         if (response && response.body) {
@@ -2100,8 +2103,11 @@ export class RestService {
    * @returns The subject from httpClient.post()
    */
   private sendOAuthRefresh(): Observable<any> {
+    if (!this.settings.useOAuth) {
+      throw new Error('Method sendOAuthRefresh not allowed for basic authentication')
+    }
     let body: string = `grant_type=refresh_token&refresh_token=${this.session.getRefreshToken()}&`
-      + `scope=${this.settings!.oauth.scope}&client_id=${this.settings!.oauth.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth.clientSecret!)}`;
+      + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
     return this.httpClient.post<any>(`${this.settings!.host}webauth/oauth/token`, body);
   }
 

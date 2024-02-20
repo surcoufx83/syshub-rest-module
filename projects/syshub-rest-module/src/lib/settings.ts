@@ -5,7 +5,8 @@ export class Settings {
     private valid$: boolean = false;
 
     constructor(private settings: BasicRestSettings | OAuthRestSettings) {
-        this.isbasic = Object.keys(settings).includes('basic');
+        this.isbasic = Object.keys(settings).includes('basic') && (!Object.keys(settings).includes('oauth') || (<any>settings).basic?.enabled === true);
+        console.log(this.isbasic, settings)
         this.validate();
         this.valid$ = true;
     }
@@ -186,19 +187,19 @@ export type BasicConnectionSettings = {
     enabled: true;
 
     /**
-     * **basic.username**: Required if basic auth is enabled; Configures the user for basic authentication.
+     * **basic.username**: Configures the user for basic authentication.
      */
-    username?: string;
+    username: string;
 
     /**
-     * **basic.password**: Required if basic auth is enabled; Configures the password for basic authentication.
+     * **basic.password**: Configures the password for basic authentication.
      */
-    password?: string;
+    password: string;
 
     /**
-     * **basic.provider**: Required if basic auth is enabled; Configures the API Server provider for basic authentication.
+     * **basic.provider**: Configures the API Server provider for basic authentication.
      */
-    provider?: string;
+    provider: string;
 };
 
 /**
@@ -240,14 +241,14 @@ export type OAuthConnectionSettings = {
     enabled: true;
 
     /**
-     * **oauth.clientId**: Required if oauth is enabled; Configures the auth server Client Id.
+     * **oauth.clientId**: Configures the auth server Client Id.
      */
-    clientId?: string;
+    clientId: string;
 
     /**
-     * **oauth.clientSecret**: Required if oauth is enabled; Configures the auth server Client Secret.
+     * **oauth.clientSecret**: Configures the auth server Client Secret.
      */
-    clientSecret?: string;
+    clientSecret: string;
 
     /**
      * **oauth.scope**: Optional property; Configures the auth server scope and must match the settings in sysHub.
