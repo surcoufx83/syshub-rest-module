@@ -2,7 +2,7 @@ import { RestService } from './rest.service';
 import { Settings } from '../settings';
 import { HttpClient, HttpErrorResponse, HttpEventType, HttpStatusCode } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { TestBed, fakeAsync, flush, tick } from '@angular/core/testing';
 import { StatusNotExpectedError, UnauthorizedError, NetworkError, MissingScopeError } from '../error';
 import { Token } from '../session';
@@ -318,58 +318,80 @@ describe('RestService', () => {
     flush();
   }));
 
-  it('should send the correct request backupSyshub() - good case', () => {
-    let payload: any;
-    const serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
-    let subject = serviceInstance.backupSyshub('mock-backupName', 'backupDescription', 'mock-/folderpath', []);
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    subject.subscribe((subject_payload) => payload = subject_payload);
-    let request = httpTestingController.expectOne(`mock-host/webapi/v3/backuprestore/backup?folder=${encodeURIComponent('mock-/folderpath')}`, 'Url called');
-    expect(request.request.method).withContext('Request method').toEqual('POST');
-    expect(request.request.body).withContext('Request body').toEqual({ BACKUPDESCRIPTION: 'backupDescription', BACKUPNAME: 'mock-backupName', BACKUPTYPES: [] });
-    let response = { name: 'mock-name', type: 'result', value: true };
-    request.flush(response, { status: 201, statusText: 'Created' });
-    expect(payload).withContext('Returned content').toEqual(response);
-  });
-
-  it('should send the correct request backupSyshub() - MissingScopeError case', fakeAsync(() => {
-    let payload: any;
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    let subject = serviceInstance.backupSyshub('mock2-backupName', 'backupDescription', 'mock2-folderpath', []);
-    subject.subscribe((subject_payload) => { console.log(payload); payload = subject_payload });
-    tick(10);
-    expect(payload).withContext('Returned content').toBeInstanceOf(MissingScopeError);
+  it('should send the correct request backupSyshub()', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparams: string[] = ['mock-backupName', 'backupDescription', 'mock-/folderpath'];
+    let testurl = `mock-host/webapi/v3/backuprestore/backup?folder=${encodeURIComponent(testparams[2])}`;
+    testValidRequest(
+      serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
+      testurl,
+      'POST',
+      { BACKUPDESCRIPTION: testparams[1], BACKUPNAME: testparams[0], BACKUPTYPES: [] },
+      { name: 'mock-name', type: 'result', value: true },
+      HttpStatusCode.Created, 'Created'
+    );
+    testNetworkError(
+      serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
+      testurl
+    );
+    flush();
   }));
 
-  it('should send the correct request backupSyshub() - StatusNotExpected case', () => {
+  function testValidRequest(subject: any, expectUrl: string, expectRequestMethod: string, expectedRequestBody: any, response: any, status: HttpStatusCode, statusText: string): void {
     let payload: any;
-    const serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
-    let subject = serviceInstance.backupSyshub('mock2-backupName', 'backupDescription', 'mock2-folderpath', []);
-    subject.subscribe((subject_payload) => payload = subject_payload);
-    let request = httpTestingController.expectOne(`mock-host/webapi/v3/backuprestore/backup?folder=${encodeURIComponent('mock2-folderpath')}`, 'Url called');
-    request.flush(null, { status: HttpStatusCode.NotFound, statusText: 'Not Found' });
-    expect(payload).withContext('Returned content').toBeInstanceOf(StatusNotExpectedError);
-  });
+    expect(subject).withContext('Return type is correct').toBeInstanceOf(Subject<Response>);
+    (<Subject<Response>>subject).subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(expectUrl, 'Url called');
+    expect(request.request.method).withContext('Request method').toEqual(expectRequestMethod);
+    expect(request.request.body).withContext('Request body').toEqual(expectedRequestBody);
+    request.flush(response, { status: status, statusText: statusText });
+    expect(payload).withContext('Returned content').toEqual(response);
+  }
 
-  it('should send the correct request backupSyshub() - Unauthorized case', () => {
+  function testMissingScopeError(subject: Observable<any>, expectUrl: string): void {
     let payload: any;
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    let subject = serviceInstance.backupSyshub('mock2-backupName', 'backupDescription', 'mock2-folderpath', []);
     subject.subscribe((subject_payload) => payload = subject_payload);
-    let request = httpTestingController.expectOne(`mock-host/webapi/v3/backuprestore/backup?folder=${encodeURIComponent('mock2-folderpath')}`, 'Url called');
-    request.flush(null, { status: HttpStatusCode.Unauthorized, statusText: 'Unauthorized' });
-    expect(payload).withContext('Returned content').toBeInstanceOf(UnauthorizedError);
-  });
+    tick(10);
+    expect(payload).withContext('Returned content').toBeInstanceOf(MissingScopeError);
+  }
 
-  it('should send the correct request backupSyshub() - NetworkError case', () => {
+  function testNetworkError(subject: Observable<any>, expectUrl: string): void {
     let payload: any;
-    const serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
-    let subject = serviceInstance.backupSyshub('mock2-backupName', 'backupDescription', 'mock2-folderpath', []);
     subject.subscribe((subject_payload) => payload = subject_payload);
-    let request = httpTestingController.expectOne(`mock-host/webapi/v3/backuprestore/backup?folder=${encodeURIComponent('mock2-folderpath')}`, 'Url called');
+    let request = httpTestingController.expectOne(expectUrl, 'Url called');
     request.flush(null, { status: 0, statusText: '' });
     expect(payload).withContext('Returned content').toBeInstanceOf(NetworkError);
-  });
+  }
+
+  function testStatusNotExpectedError(subject: Observable<any>, expectUrl: string): void {
+    let payload: any;
+    subject.subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(expectUrl, 'Url called');
+    request.flush(null, { status: HttpStatusCode.NotFound, statusText: 'Not Found' });
+    expect(payload).withContext('Returned content').toBeInstanceOf(StatusNotExpectedError);
+  }
+
+  function testUnauthorizedError(subject: Observable<any>, expectUrl: string): void {
+    let payload: any;
+    subject.subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(expectUrl, 'Url called');
+    request.flush(null, { status: HttpStatusCode.Unauthorized, statusText: 'Unauthorized' });
+    expect(payload).withContext('Returned content').toBeInstanceOf(UnauthorizedError);
+  }
 
 });
