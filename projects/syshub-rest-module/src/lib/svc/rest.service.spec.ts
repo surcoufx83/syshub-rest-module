@@ -6,6 +6,7 @@ import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { TestBed, fakeAsync, flush, tick } from '@angular/core/testing';
 import { StatusNotExpectedError, UnauthorizedError, NetworkError, MissingScopeError } from '../error';
 import { Token } from '../session';
+import { SyshubCategory, SyshubJob, SyshubSyslogEntryToCreate, SyshubUserlogEntryToCreate } from '../types';
 
 describe('RestService', () => {
 
@@ -86,6 +87,48 @@ describe('RestService', () => {
   afterEach(() => {
     localStorage.removeItem('authmod-session');
   });
+
+  function testMissingScopeError(subject: Observable<any>, expectUrl: string): void {
+    let payload: any;
+    subject.subscribe((subject_payload) => payload = subject_payload);
+    tick(10);
+    expect(payload).withContext('testMissingScopeError: Match returned content').toBeInstanceOf(MissingScopeError);
+  }
+
+  function testNetworkError(subject: Observable<any>, expectUrl: string): void {
+    let payload: any;
+    subject.subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(expectUrl, 'Url called');
+    request.flush(null, { status: 0, statusText: '' });
+    expect(payload).withContext('testNetworkError: Match returned content').toBeInstanceOf(NetworkError);
+  }
+
+  function testStatusNotExpectedError(subject: Observable<any>, expectUrl: string): void {
+    let payload: any;
+    subject.subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(expectUrl, 'Url called');
+    request.flush(null, { status: HttpStatusCode.NotFound, statusText: 'Not Found' });
+    expect(payload).withContext('testStatusNotExpectedError: Match returned content').toBeInstanceOf(StatusNotExpectedError);
+  }
+
+  function testUnauthorizedError(subject: Observable<any>, expectUrl: string): void {
+    let payload: any;
+    subject.subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(expectUrl, 'Url called');
+    request.flush(null, { status: HttpStatusCode.Unauthorized, statusText: 'Unauthorized' });
+    expect(payload).withContext('testUnauthorizedError: Match returned content').toBeInstanceOf(UnauthorizedError);
+  }
+
+  function testValidRequest(subject: any, expectUrl: string, expectRequestMethod: string, expectedRequestBody: any, sendResponse: any, sendHeader: { [key: string]: string } | undefined, expectedResponse: any, status: HttpStatusCode, statusText: string): void {
+    let payload: any;
+    expect(subject).withContext('Valid request: Return type should be instanceOf Subject<Response>').toBeInstanceOf(Subject<Response>);
+    (<Subject<Response>>subject).subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(expectUrl, 'Valid request: Expected url called');
+    expect(request.request.method).withContext('Valid request: Match request method').toEqual(expectRequestMethod);
+    expect(request.request.body).withContext('Valid request: Match request body').toEqual(expectedRequestBody);
+    request.flush(sendResponse, { status: status, statusText: statusText, headers: sendHeader });
+    expect(payload).withContext('Valid request: Match returned content').toEqual(expectedResponse);
+  }
 
   it('should be created', () => {
     const serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
@@ -318,7 +361,13 @@ describe('RestService', () => {
     flush();
   }));
 
-  it('should send the correct request backupSyshub()', fakeAsync(() => {
+  it('should return correct accessToken', () => {
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    expect(serviceInstance.getAccessToken()).withContext('Refers to access token from session').toEqual(mockLoggedInLocalStorage.accessToken);
+  });
+
+  it('should process method backupSyshub() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparams: string[] = ['mock-backupName', 'backupDescription', 'mock-/folderpath'];
     let testurl = `mock-host/webapi/v3/backuprestore/backup?folder=${encodeURIComponent(testparams[2])}`;
@@ -327,6 +376,8 @@ describe('RestService', () => {
       testurl,
       'POST',
       { BACKUPDESCRIPTION: testparams[1], BACKUPNAME: testparams[0], BACKUPTYPES: [] },
+      { name: 'mock-name', type: 'result', value: true },
+      undefined,
       { name: 'mock-name', type: 'result', value: true },
       HttpStatusCode.Created, 'Created'
     );
@@ -352,46 +403,327 @@ describe('RestService', () => {
     flush();
   }));
 
-  function testValidRequest(subject: any, expectUrl: string, expectRequestMethod: string, expectedRequestBody: any, response: any, status: HttpStatusCode, statusText: string): void {
-    let payload: any;
-    expect(subject).withContext('Return type is correct').toBeInstanceOf(Subject<Response>);
-    (<Subject<Response>>subject).subscribe((subject_payload) => payload = subject_payload);
-    let request = httpTestingController.expectOne(expectUrl, 'Url called');
-    expect(request.request.method).withContext('Request method').toEqual(expectRequestMethod);
-    expect(request.request.body).withContext('Request body').toEqual(expectedRequestBody);
-    request.flush(response, { status: status, statusText: statusText });
-    expect(payload).withContext('Returned content').toEqual(response);
-  }
+  it('should process method createCategory() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam: SyshubCategory = {
+      description: 'mock-description',
+      modifiedby: null,
+      modifiedtime: null,
+      name: 'mock-name',
+      uuid: 'mock-uuid'
+    };
+    let testurl = `mock-host/webapi/v3/category/list`;
+    testValidRequest(
+      serviceInstance.createCategory(testparam),
+      testurl,
+      'PUT',
+      { children: [testparam] },
+      { children: [testparam] },
+      undefined,
+      [testparam],
+      HttpStatusCode.Created, 'Created'
+    );
+    testNetworkError(
+      serviceInstance.createCategory(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.createCategory(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.createCategory(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.createCategory(testparam),
+      testurl
+    );
+    flush();
+  }));
 
-  function testMissingScopeError(subject: Observable<any>, expectUrl: string): void {
-    let payload: any;
-    subject.subscribe((subject_payload) => payload = subject_payload);
-    tick(10);
-    expect(payload).withContext('Returned content').toBeInstanceOf(MissingScopeError);
-  }
+  it('should process method createJob() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = { id: 'mock-id', };
+    let testurl = `mock-host/webapi/v3/jobs`;
+    testValidRequest(
+      serviceInstance.createJob(<SyshubJob><any>testparam),
+      testurl,
+      'POST',
+      testparam,
+      testparam,
+      { 'Location': 'mock-forward-header' },
+      { content: testparam, header: { 'Location': 'mock-forward-header' } },
+      HttpStatusCode.Created, 'Created'
+    );
+    testNetworkError(
+      serviceInstance.createJob(<SyshubJob><any>testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.createJob(<SyshubJob><any>testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.createJob(<SyshubJob><any>testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.createJob(<SyshubJob><any>testparam),
+      testurl
+    );
+    flush();
+  }));
 
-  function testNetworkError(subject: Observable<any>, expectUrl: string): void {
-    let payload: any;
-    subject.subscribe((subject_payload) => payload = subject_payload);
-    let request = httpTestingController.expectOne(expectUrl, 'Url called');
-    request.flush(null, { status: 0, statusText: '' });
-    expect(payload).withContext('Returned content').toBeInstanceOf(NetworkError);
-  }
+  it('should process method createSyslogEntry() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = { id: 'mock-id', };
+    let testurl = `mock-host/webapi/v3/syslogs`;
+    testValidRequest(
+      serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
+      testurl,
+      'POST',
+      testparam,
+      testparam,
+      { 'Location': 'mock-forward-header' },
+      { content: testparam, header: { 'Location': 'mock-forward-header' } },
+      HttpStatusCode.Created, 'Created'
+    );
+    testNetworkError(
+      serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
+      testurl
+    );
+    flush();
+  }));
 
-  function testStatusNotExpectedError(subject: Observable<any>, expectUrl: string): void {
-    let payload: any;
-    subject.subscribe((subject_payload) => payload = subject_payload);
-    let request = httpTestingController.expectOne(expectUrl, 'Url called');
-    request.flush(null, { status: HttpStatusCode.NotFound, statusText: 'Not Found' });
-    expect(payload).withContext('Returned content').toBeInstanceOf(StatusNotExpectedError);
-  }
+  it('should process method createUserlogEntry() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = { id: 'mock-id', };
+    let testurl = `mock-host/webapi/v3/userlogs`;
+    testValidRequest(
+      serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
+      testurl,
+      'POST',
+      testparam,
+      testparam,
+      { 'Location': 'mock-forward-header' },
+      { content: testparam, header: { 'Location': 'mock-forward-header' } },
+      HttpStatusCode.Created, 'Created'
+    );
+    testNetworkError(
+      serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
+      testurl
+    );
+    flush();
+  }));
 
-  function testUnauthorizedError(subject: Observable<any>, expectUrl: string): void {
-    let payload: any;
-    subject.subscribe((subject_payload) => payload = subject_payload);
-    let request = httpTestingController.expectOne(expectUrl, 'Url called');
-    request.flush(null, { status: HttpStatusCode.Unauthorized, statusText: 'Unauthorized' });
-    expect(payload).withContext('Returned content').toBeInstanceOf(UnauthorizedError);
-  }
+  it('should process method deletec() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'category';
+    let testurl = 'mock-host/webapi/custom/category';
+    testValidRequest(
+      serviceInstance.deletec(testparam),
+      testurl,
+      'DELETE',
+      null,
+      { mock: 'foo' },
+      undefined,
+      { content: Object({ mock: 'foo' }), etag: undefined, header: Object({}), status: 200 },
+      HttpStatusCode.Ok, 'OK'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testValidRequest(
+      serviceInstance.deletec(testparam),
+      testurl,
+      'DELETE',
+      null,
+      null,
+      undefined,
+      { content: null, status: 401 },
+      HttpStatusCode.Unauthorized, 'Unauthorized'
+    );
+    flush();
+  }));
+
+  it('should process method deleteCategory() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/category/${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.deleteCategory(testparam),
+      testurl,
+      'DELETE',
+      null,
+      testparam,
+      undefined,
+      testparam,
+      HttpStatusCode.Ok, 'OK'
+    );
+    testNetworkError(
+      serviceInstance.deleteCategory(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.deleteCategory(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.deleteCategory(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.deleteCategory(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method deleteConfigItem() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/config/${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.deleteConfigItem(testparam),
+      testurl,
+      'DELETE',
+      null,
+      testparam,
+      undefined,
+      testparam,
+      HttpStatusCode.Ok, 'OK'
+    );
+    testNetworkError(
+      serviceInstance.deleteConfigItem(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.deleteConfigItem(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.deleteConfigItem(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.deleteConfigItem(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method deletePSetItem() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/parameterset/${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.deletePSetItem(testparam),
+      testurl,
+      'DELETE',
+      null,
+      testparam,
+      undefined,
+      testparam,
+      HttpStatusCode.Ok, 'OK'
+    );
+    testNetworkError(
+      serviceInstance.deletePSetItem(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.deletePSetItem(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.deletePSetItem(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.deletePSetItem(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method deleteJob() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 1024;
+    let testurl = `mock-host/webapi/v3/jobs/${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.deleteJob(testparam),
+      testurl,
+      'DELETE',
+      null,
+      testparam,
+      undefined,
+      true,
+      HttpStatusCode.NoContent, 'NoContent'
+    );
+    testNetworkError(
+      serviceInstance.deleteJob(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.deleteJob(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.deleteJob(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.deleteJob(testparam),
+      testurl
+    );
+    flush();
+  }));
 
 });

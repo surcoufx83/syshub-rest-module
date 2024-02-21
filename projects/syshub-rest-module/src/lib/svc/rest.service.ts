@@ -234,7 +234,7 @@ export class RestService {
 
   /**
    * Use this method to send a HTTP DELETE request to a **custom endpoint** of the sysHUB Server.
-   * @param endpoint The Rest API endpoint that follows after *webapi/v3/* and must not include this.
+   * @param endpoint The Rest API endpoint that follows after *webapi/v3/custom/* and must not include this.
    * @returns An observable object to track the status and result of the Rest API call.
    * @throws NotLoggedinError If user is not loggedin with OAuth and throw errors has been enabled in settings.
    */
