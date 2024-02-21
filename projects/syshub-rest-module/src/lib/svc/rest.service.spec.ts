@@ -726,4 +726,1294 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getc() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'category';
+    let testurl = 'mock-host/webapi/custom/category';
+    testValidRequest(
+      serviceInstance.getc(testparam),
+      testurl,
+      'GET',
+      null,
+      { mock: 'foo' },
+      undefined,
+      { content: Object({ mock: 'foo' }), etag: undefined, header: Object({}), status: 200 },
+      HttpStatusCode.Ok, 'OK'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testValidRequest(
+      serviceInstance.getc(testparam),
+      testurl,
+      'GET',
+      null,
+      null,
+      undefined,
+      { content: null, status: 401 },
+      HttpStatusCode.Unauthorized, 'Unauthorized'
+    );
+    flush();
+  }));
+
+  it('should process method getBackupMetadata() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-folder';
+    let testurl = `mock-host/webapi/v3/backuprestore/metadata?folder=${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.getBackupMetadata(testparam),
+      testurl,
+      'GET',
+      null,
+      { foo: 'mock-response' },
+      undefined,
+      { foo: 'mock-response' },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getBackupMetadata(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getBackupMetadata(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getBackupMetadata(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getBackupMetadata(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getCategories() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/category/list`;
+    testValidRequest(
+      serviceInstance.getCategories(),
+      testurl,
+      'GET',
+      null,
+      { children: [{ foo: 'mock-response' }] },
+      undefined,
+      [{ foo: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getCategories(),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getCategories(),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getCategories(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getCategories(),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getCategory() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/category/${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.getCategory(testparam),
+      testurl,
+      'GET',
+      null,
+      { foo: 'mock-response' },
+      undefined,
+      { foo: 'mock-response' },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getCategory(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getCategory(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getCategory(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getCategory(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getCategoryRefs() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/category/references/${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.getCategoryRefs(testparam),
+      testurl,
+      'GET',
+      null,
+      [{ foo: 'mock-response' }],
+      undefined,
+      [{ foo: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getCategoryRefs(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getCategoryRefs(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getCategoryRefs(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getCategoryRefs(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getCategoryRefs() with type filter correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/category/references/${encodeURIComponent(testparam)}?type=Decision`;
+    testValidRequest(
+      serviceInstance.getCategoryRefs(testparam, 'Decision'),
+      testurl,
+      'GET',
+      null,
+      [{ foo: 'mock-response' }],
+      undefined,
+      [{ foo: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    flush();
+  }));
+
+  it('should process method getCertStoreItems() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam: 'keystore' | 'truststore' = 'keystore';
+    let testurl = `mock-host/webapi/v3/certificate/list/${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.getCertStoreItems(testparam),
+      testurl,
+      'GET',
+      null,
+      [{ foo: 'mock-response' }],
+      undefined,
+      [{ foo: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getCertStoreItems(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getCertStoreItems(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getCertStoreItems(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getCertStoreItems(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getClusterStatus() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/server/cluster`;
+    testValidRequest(
+      serviceInstance.getClusterStatus(),
+      testurl,
+      'GET',
+      null,
+      { foo: 'mock-response' },
+      undefined,
+      { foo: 'mock-response' },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getClusterStatus(),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getClusterStatus(),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getClusterStatus(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getClusterStatus(),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getConfigChildren() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/config/children?uuid=${encodeURIComponent(testparam)}&maxDeep=0`;
+    testValidRequest(
+      serviceInstance.getConfigChildren(testparam),
+      testurl,
+      'GET',
+      null,
+      [{ foo: 'mock-response' }],
+      undefined,
+      [{ foo: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getConfigChildren(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getConfigChildren(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getConfigChildren(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getConfigChildren(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getConfigChildren() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/config/children?uuid=${encodeURIComponent(testparam)}&maxDeep=1`;
+    testValidRequest(
+      serviceInstance.getConfigChildren(testparam, 1),
+      testurl,
+      'GET',
+      null,
+      [{ foo: 'mock-response' }],
+      undefined,
+      [{ foo: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    flush();
+  }));
+
+  it('should process method getConfigItem() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/config/${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.getConfigItem(testparam),
+      testurl,
+      'GET',
+      null,
+      { foo: 'mock-response' },
+      undefined,
+      { foo: 'mock-response' },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getConfigItem(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getConfigItem(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getConfigItem(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getConfigItem(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getConfigPath() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/config/path/${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.getConfigPath(testparam),
+      testurl,
+      'GET',
+      null,
+      { value: 'mock-response' },
+      undefined,
+      'mock-response',
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getConfigPath(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getConfigPath(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getConfigPath(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getConfigPath(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getConnectedClients() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = true;
+    let testurl = `mock-host/webapi/v3/server/list/clientInformation?showAll=${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.getConnectedClients(testparam),
+      testurl,
+      'GET',
+      null,
+      [{ value: 'mock-response' }],
+      undefined,
+      [{ value: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getConnectedClients(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getConnectedClients(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getConnectedClients(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getConnectedClients(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getConnectedClients() with false param correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = false;
+    let testurl = `mock-host/webapi/v3/server/list/clientInformation?showAll=${encodeURIComponent(testparam)}`;
+    testValidRequest(
+      serviceInstance.getConnectedClients(testparam),
+      testurl,
+      'GET',
+      null,
+      [{ value: 'mock-response' }],
+      undefined,
+      [{ value: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    flush();
+  }));
+
+  it('should process method getCurrentUser() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/currentUser`;
+    testValidRequest(
+      serviceInstance.getCurrentUser(),
+      testurl,
+      'GET',
+      null,
+      { value: 'mock-response' },
+      undefined,
+      { value: 'mock-response' },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getCurrentUser(),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getCurrentUser(),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getCurrentUser(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getCurrentUser(),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getCurrentUsersPermissions() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/users/currentUser/permissions`;
+    testValidRequest(
+      serviceInstance.getCurrentUsersPermissions(),
+      testurl,
+      'GET',
+      null,
+      ['mock-perm1', 'mock-perm2'],
+      undefined,
+      ['mock-perm1', 'mock-perm2'],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getCurrentUsersPermissions(),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getCurrentUsersPermissions(),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getCurrentUsersPermissions(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getCurrentUsersPermissions(),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getCurrentUsersRoles() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/users/currentUser/roles`;
+    testValidRequest(
+      serviceInstance.getCurrentUsersRoles(),
+      testurl,
+      'GET',
+      null,
+      ['mock-role1', 'mock-role2'],
+      undefined,
+      ['mock-role1', 'mock-role2'],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getCurrentUsersRoles(),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getCurrentUsersRoles(),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getCurrentUsersRoles(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getCurrentUsersRoles(),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getDevices() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/server/list/devices`;
+    testValidRequest(
+      serviceInstance.getDevices(),
+      testurl,
+      'GET',
+      null,
+      [{ value: 'mock-response' }],
+      undefined,
+      [{ value: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getDevices(),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getDevices(),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getDevices(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getDevices(),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getDevices() with true param correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/server/list/devices?withImages=true`;
+    testValidRequest(
+      serviceInstance.getDevices(true),
+      testurl,
+      'GET',
+      null,
+      [{ value: 'mock-response' }],
+      undefined,
+      [{ value: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    flush();
+  }));
+
+  it('should process method getJndiDatabaseStructure() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/server/db/listAttributes/System?isNativeCall=true`;
+    testValidRequest(
+      serviceInstance.getJndiDatabaseStructure(),
+      testurl,
+      'GET',
+      null,
+      SystemNativeJndiDef,
+      undefined,
+      SystemJndiDefResponse,
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getJndiDatabaseStructure(),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getJndiDatabaseStructure(),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getJndiDatabaseStructure(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getJndiDatabaseStructure(),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getJndiDatabaseStructure() with params correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/server/db/listAttributes/custdb?isNativeCall=false`;
+    testValidRequest(
+      serviceInstance.getJndiDatabaseStructure('custdb', false),
+      testurl,
+      'GET',
+      null,
+      SystemJndiDef,
+      undefined,
+      SystemJndiDefResponse,
+      HttpStatusCode.Ok, 'Ok'
+    );
+    flush();
+  }));
+
+  it('should throw console error in method getJndiDatabaseStructure()', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/server/db/listAttributes/custdb?isNativeCall=false`;
+    spyOn(console, 'error');
+    testValidRequest(
+      serviceInstance.getJndiDatabaseStructure('custdb', false),
+      testurl,
+      'GET',
+      null,
+      [{ text: "mock-tableName", node: [{ text: "foo" }] }],
+      undefined,
+      [{ name: 'mock-tableName', columns: [] }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    expect(console.error).withContext('Console receives error message').toHaveBeenCalledWith('Unable to match table column definition for column foo in table mock-tableName');
+    flush();
+  }));
+
+  it('should process method getJndiConnectionNames() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/server/db/listJNDI`;
+    testValidRequest(
+      serviceInstance.getJndiConnectionNames(),
+      testurl,
+      'GET',
+      null,
+      ['mock-jndi1', 'mock-jndi2'],
+      undefined,
+      ['mock-jndi1', 'mock-jndi2'],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getJndiConnectionNames(),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getJndiConnectionNames(),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getJndiConnectionNames(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getJndiConnectionNames(),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getJob() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/jobs/1024`;
+    testValidRequest(
+      serviceInstance.getJob(1024),
+      testurl,
+      'GET',
+      null,
+      { id: 1024, title: 'mock-title' },
+      undefined,
+      { id: 1024, title: 'mock-title' },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getJob(1024),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getJob(1024),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getJob(1024),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getJob(1024),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getJobDir() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/server/jobsDir`;
+    testValidRequest(
+      serviceInstance.getJobDir(),
+      testurl,
+      'GET',
+      null,
+      { value: 'mock-dir' },
+      undefined,
+      'mock-dir',
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getJobDir(),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getJobDir(),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getJobDir(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getJobDir(),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getJobDir() with jobId correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/server/jobsDir?jobId=1024`;
+    testValidRequest(
+      serviceInstance.getJobDir(1024),
+      testurl,
+      'GET',
+      null,
+      { value: 'mock-dir/1024' },
+      undefined,
+      'mock-dir/1024',
+      HttpStatusCode.Ok, 'Ok'
+    );
+    flush();
+  }));
+
+  it('should process method getJobType() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/jobtype/${testparam}`;
+    testValidRequest(
+      serviceInstance.getJobType(testparam),
+      testurl,
+      'GET',
+      null,
+      { uuid: testparam, title: 'mock-title' },
+      undefined,
+      { uuid: testparam, title: 'mock-title' },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getJobType(testparam),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getJobType(testparam),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getJobType(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getJobType(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getJobTypes() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/jobtype/list`;
+    testValidRequest(
+      serviceInstance.getJobTypes(),
+      testurl,
+      'GET',
+      null,
+      {
+        children: [
+          { uuid: 'mock-uuid1', title: 'mock-title1' },
+          { uuid: 'mock-uuid2', title: 'mock-title2', category: {} },
+          { uuid: 'mock-uuid3', title: 'mock-title3', category: { uuid: null } },
+          { uuid: 'mock-uuid4', title: 'mock-title4', category: { uuid: 'mock-cat-uuid' } }
+        ]
+      },
+      undefined,
+      [
+        { uuid: 'mock-uuid1', title: 'mock-title1' },
+        { uuid: 'mock-uuid2', title: 'mock-title2', category: null },
+        { uuid: 'mock-uuid3', title: 'mock-title3', category: null },
+        { uuid: 'mock-uuid4', title: 'mock-title4', category: { uuid: 'mock-cat-uuid' } }
+      ],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testNetworkError(
+      serviceInstance.getJobTypes(),
+      testurl
+    );
+    testStatusNotExpectedError(
+      serviceInstance.getJobTypes(),
+      testurl
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getJobTypes(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getJobTypes(),
+      testurl
+    );
+    flush();
+  }));
+
 });
+
+export const SystemJndiDef = [
+  {
+    "text": "config",
+    "node": [
+      {
+        "text": "uuid:varchar"
+      },
+      {
+        "text": "modifiedby:varchar"
+      },
+      {
+        "text": "modifiedtime:datetime2"
+      },
+      {
+        "text": "config_name:varchar"
+      },
+      {
+        "text": "config_type:int"
+      },
+      {
+        "text": "config_value:varchar"
+      },
+      {
+        "text": "description:varchar"
+      },
+      {
+        "text": "parentuuid:varchar"
+      }
+    ]
+  },
+  {
+    "text": "filestatus",
+    "node": [
+      {
+        "text": "id:bigint identity"
+      },
+      {
+        "text": "jobid:bigint"
+      },
+      {
+        "text": "sourcejobid:bigint"
+      },
+      {
+        "text": "packageid:bigint"
+      },
+      {
+        "text": "status:int"
+      },
+      {
+        "text": "textstatus:varchar"
+      },
+      {
+        "text": "filename:varchar"
+      },
+      {
+        "text": "filetype:varchar"
+      },
+      {
+        "text": "datatype:varchar"
+      },
+      {
+        "text": "application:varchar"
+      },
+      {
+        "text": "host:varchar"
+      },
+      {
+        "text": "xid:varchar"
+      },
+      {
+        "text": "pages:int"
+      },
+      {
+        "text": "documents:int"
+      },
+      {
+        "text": "prpages:int"
+      },
+      {
+        "text": "customfield:varchar"
+      },
+      {
+        "text": "customfield1:varchar"
+      },
+      {
+        "text": "customfield2:varchar"
+      },
+      {
+        "text": "customfield3:varchar"
+      },
+      {
+        "text": "customfield4:varchar"
+      },
+      {
+        "text": "modifiedby:varchar"
+      },
+      {
+        "text": "modifiedtime:datetime2"
+      },
+      {
+        "text": "customdata:varbinary"
+      },
+      {
+        "text": "deldate:datetime2"
+      }
+    ]
+  },
+];
+
+export const SystemNativeJndiDef = [
+  {
+    "text": "config",
+    "node": [
+      {
+        "text": "uuid:varchar"
+      },
+      {
+        "text": "modifiedby:varchar"
+      },
+      {
+        "text": "modifiedtime:datetime2"
+      },
+      {
+        "text": "config_name:varchar"
+      },
+      {
+        "text": "config_type:int"
+      },
+      {
+        "text": "config_value:varchar"
+      },
+      {
+        "text": "description:varchar"
+      },
+      {
+        "text": "parentuuid:varchar"
+      }
+    ]
+  },
+  {
+    "text": "filestatus",
+    "node": [
+      {
+        "text": "id:bigint identity"
+      },
+      {
+        "text": "jobid:bigint"
+      },
+      {
+        "text": "sourcejobid:bigint"
+      },
+      {
+        "text": "packageid:bigint"
+      },
+      {
+        "text": "status:int"
+      },
+      {
+        "text": "textstatus:varchar"
+      },
+      {
+        "text": "filename:varchar"
+      },
+      {
+        "text": "filetype:varchar"
+      },
+      {
+        "text": "datatype:varchar"
+      },
+      {
+        "text": "application:varchar"
+      },
+      {
+        "text": "host:varchar"
+      },
+      {
+        "text": "xid:varchar"
+      },
+      {
+        "text": "pages:int"
+      },
+      {
+        "text": "documents:int"
+      },
+      {
+        "text": "prpages:int"
+      },
+      {
+        "text": "customfield:varchar"
+      },
+      {
+        "text": "customfield1:varchar"
+      },
+      {
+        "text": "customfield2:varchar"
+      },
+      {
+        "text": "customfield3:varchar"
+      },
+      {
+        "text": "customfield4:varchar"
+      },
+      {
+        "text": "modifiedby:varchar"
+      },
+      {
+        "text": "modifiedtime:datetime2"
+      },
+      {
+        "text": "customdata:varbinary"
+      },
+      {
+        "text": "deldate:datetime2"
+      }
+    ]
+  },
+];
+
+export const SystemJndiDefResponse = [
+  {
+    "name": "config",
+    "columns": [
+      {
+        "name": "uuid",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "modifiedby",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "modifiedtime",
+        "datatype": "datetime2",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "config_name",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "config_type",
+        "datatype": "int",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "config_value",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "description",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "parentuuid",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      }
+    ]
+  },
+  {
+    "name": "filestatus",
+    "columns": [
+      {
+        "name": "id",
+        "datatype": "bigint",
+        "isIdColumn": true,
+        "isUnique": false
+      },
+      {
+        "name": "jobid",
+        "datatype": "bigint",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "sourcejobid",
+        "datatype": "bigint",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "packageid",
+        "datatype": "bigint",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "status",
+        "datatype": "int",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "textstatus",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "filename",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "filetype",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "datatype",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "application",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "host",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "xid",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "pages",
+        "datatype": "int",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "documents",
+        "datatype": "int",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "prpages",
+        "datatype": "int",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "customfield",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "customfield1",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "customfield2",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "customfield3",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "customfield4",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "modifiedby",
+        "datatype": "varchar",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "modifiedtime",
+        "datatype": "datetime2",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "customdata",
+        "datatype": "varbinary",
+        "isIdColumn": false,
+        "isUnique": false
+      },
+      {
+        "name": "deldate",
+        "datatype": "datetime2",
+        "isIdColumn": false,
+        "isUnique": false
+      }
+    ]
+  }
+];
