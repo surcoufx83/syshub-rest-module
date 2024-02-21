@@ -234,7 +234,7 @@ export class RestService {
 
   /**
    * Use this method to send a HTTP DELETE request to a **custom endpoint** of the sysHUB Server.
-   * @param endpoint The Rest API endpoint that follows after *webapi/v3/custom/* and must not include this.
+   * @param endpoint The Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @returns An observable object to track the status and result of the Rest API call.
    * @throws NotLoggedinError If user is not loggedin with OAuth and throw errors has been enabled in settings.
    */
@@ -357,7 +357,7 @@ export class RestService {
 
   /**
    * Use this method to call a **custom endpoint** via HTTP GET.
-   * @param endpoint The custom Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The custom Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method
    * @returns An observable object to track the status and result of the Rest API call.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
@@ -1426,7 +1426,7 @@ export class RestService {
 
   /**
    * Use this method to call a **custom endpoint** via HTTP HEAD.
-   * @param endpoint The custom Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The custom Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @returns An observable object which receives the raw http response of error.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
@@ -1529,7 +1529,7 @@ export class RestService {
 
   /**
    * Use this method to call a **custom endpoint** via HTTP OPTIONS.
-   * @param endpoint The custom Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The custom Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @returns An observable object which receives the raw http response of error.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
@@ -1572,7 +1572,7 @@ export class RestService {
   /**
    * Use this method to send data via HTTP PATCH to a **custom endpoint** of the sysHUB Server. Make sure that the data matches the expected data 
    * of the sysHUB endpoint.
-   * @param endpoint The Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @param payload Any data that can be sent to the sysHUB Server.
    * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method
    * @returns An observable object to track the status and result of the Rest API call.
@@ -1637,7 +1637,7 @@ export class RestService {
    * Use this method to send data via HTTP POST to a **custom endpoint** of the sysHUB Server. Make sure that the data matches the expected data of 
    * the sysHUB endpoint.
    * To send files to the server make sure to use payload of type *FormData*.
-   * @param endpoint The Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @param payload Any data that can be sent to the sysHUB Server.
    * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method
    * @returns An observable object to track the status and result of the Rest API call.
@@ -1677,7 +1677,7 @@ export class RestService {
   /**
    * Use this method to send data via HTTP PUT to a **custom endpoint** the sysHUB Server. Make sure that the data matches the expected data of 
    * the sysHUB endpoint.
-   * @param endpoint The Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @param payload Any data that can be sent to the sysHUB Server.
    * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method
    * @returns An observable object to track the status and result of the Rest API call.
