@@ -439,6 +439,7 @@ describe('RestService', () => {
       () => serviceInstance.getServerProperties(),
       () => serviceInstance.getUsers(),
       () => serviceInstance.getWorkflows({}),
+      () => serviceInstance.getWorkflowModel(''),
     ])
     flush();
   }));
@@ -523,6 +524,7 @@ describe('RestService', () => {
       [() => serviceInstance.getWorkflows({}), 'mock-host/webapi/v3/workflows'],
       [() => serviceInstance.getWorkflowExecution(''), 'mock-host/webapi/v3/workflows/execute/'],
       [() => serviceInstance.getWorkflowExecutions(), 'mock-host/webapi/v3/workflows/execute'],
+      [() => serviceInstance.getWorkflowModel(''), 'mock-host/webapi/v3/workflow/'],
     ])
     flush();
   }));
@@ -964,6 +966,12 @@ describe('RestService', () => {
         url: `mock-host/webapi/v3/workflows/execute`, method: 'GET',
         expectedRequestBody: null,
         sendResponse: simpleObjectWithChildrenArray.children
+      },
+      {
+        fn: () => serviceInstance.getWorkflowModel('mock-/uuid'),
+        url: `mock-host/webapi/v3/workflow/${encodeURIComponent('mock-/uuid')}`, method: 'GET',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithStr
       },
     ])
     flush();
