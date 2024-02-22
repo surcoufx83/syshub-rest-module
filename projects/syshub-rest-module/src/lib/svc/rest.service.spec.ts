@@ -1,4 +1,4 @@
-import { RestService } from './rest.service';
+import { RestService, SearchParams } from './rest.service';
 import { Settings } from '../settings';
 import { HttpClient, HttpErrorResponse, HttpEventType, HttpStatusCode } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
@@ -1382,6 +1382,46 @@ describe('RestService', () => {
     serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
     testMissingScopeError(
       serviceInstance.getJobTypes(),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getJobs() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/jobs`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getJobs(),
+      testurl,
+      'GET',
+      null,
+      { mock: 'mock-item' },
+      { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' },
+      { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' } },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    let testparams: SearchParams = { limit: 100, offset: 10, orderby: 'id', search: 'foo' };
+    testurl = `mock-host/webapi/v3/jobs?limit=100&offset=10&orderby=id&search=foo`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getJobs(testparams),
+      testurl,
+      'GET',
+      null,
+      { mock: 'mock-item' },
+      { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '11', First: '10', Previous: '9' },
+      { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '11', First: '10', Previous: '9' } },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testurl = `mock-host/webapi/v3/jobs`;
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getJobs(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getJobs(),
       testurl
     );
     flush();
