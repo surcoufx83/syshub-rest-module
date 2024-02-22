@@ -397,8 +397,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparams: string[] = ['mock-backupName', 'backupDescription', 'mock-/folderpath'];
     let testurl = `mock-host/webapi/v3/backuprestore/backup?folder=${encodeURIComponent(testparams[2])}`;
-    testValidRequest(
-      serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
+    testValidAndBasicErrors(
+      () => serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
       testurl,
       'POST',
       { BACKUPDESCRIPTION: testparams[1], BACKUPNAME: testparams[0], BACKUPTYPES: [] },
@@ -406,14 +406,6 @@ describe('RestService', () => {
       undefined,
       { name: 'mock-name', type: 'result', value: true },
       HttpStatusCode.Created, 'Created'
-    );
-    testNetworkError(
-      serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -439,8 +431,8 @@ describe('RestService', () => {
       uuid: 'mock-uuid'
     };
     let testurl = `mock-host/webapi/v3/category/list`;
-    testValidRequest(
-      serviceInstance.createCategory(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.createCategory(testparam),
       testurl,
       'PUT',
       { children: [testparam] },
@@ -448,14 +440,6 @@ describe('RestService', () => {
       undefined,
       [testparam],
       HttpStatusCode.Created, 'Created'
-    );
-    testNetworkError(
-      serviceInstance.createCategory(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.createCategory(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -475,8 +459,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = { id: 'mock-id', };
     let testurl = `mock-host/webapi/v3/jobs`;
-    testValidRequest(
-      serviceInstance.createJob(<SyshubJob><any>testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.createJob(<SyshubJob><any>testparam),
       testurl,
       'POST',
       testparam,
@@ -484,14 +468,6 @@ describe('RestService', () => {
       { 'Location': 'mock-forward-header' },
       { content: testparam, header: { 'Location': 'mock-forward-header' } },
       HttpStatusCode.Created, 'Created'
-    );
-    testNetworkError(
-      serviceInstance.createJob(<SyshubJob><any>testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.createJob(<SyshubJob><any>testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -511,8 +487,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = { id: 'mock-id', };
     let testurl = `mock-host/webapi/v3/syslogs`;
-    testValidRequest(
-      serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
       testurl,
       'POST',
       testparam,
@@ -520,14 +496,6 @@ describe('RestService', () => {
       { 'Location': 'mock-forward-header' },
       { content: testparam, header: { 'Location': 'mock-forward-header' } },
       HttpStatusCode.Created, 'Created'
-    );
-    testNetworkError(
-      serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -547,8 +515,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = { id: 'mock-id', };
     let testurl = `mock-host/webapi/v3/userlogs`;
-    testValidRequest(
-      serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
       testurl,
       'POST',
       testparam,
@@ -556,14 +524,6 @@ describe('RestService', () => {
       { 'Location': 'mock-forward-header' },
       { content: testparam, header: { 'Location': 'mock-forward-header' } },
       HttpStatusCode.Created, 'Created'
-    );
-    testNetworkError(
-      serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -612,8 +572,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = 'mock-uuid';
     let testurl = `mock-host/webapi/v3/category/${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.deleteCategory(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.deleteCategory(testparam),
       testurl,
       'DELETE',
       null,
@@ -621,14 +581,6 @@ describe('RestService', () => {
       undefined,
       testparam,
       HttpStatusCode.Ok, 'OK'
-    );
-    testNetworkError(
-      serviceInstance.deleteCategory(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.deleteCategory(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -648,8 +600,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = 'mock-uuid';
     let testurl = `mock-host/webapi/v3/config/${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.deleteConfigItem(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.deleteConfigItem(testparam),
       testurl,
       'DELETE',
       null,
@@ -657,14 +609,6 @@ describe('RestService', () => {
       undefined,
       testparam,
       HttpStatusCode.Ok, 'OK'
-    );
-    testNetworkError(
-      serviceInstance.deleteConfigItem(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.deleteConfigItem(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -684,8 +628,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = 'mock-uuid';
     let testurl = `mock-host/webapi/v3/parameterset/${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.deletePSetItem(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.deletePSetItem(testparam),
       testurl,
       'DELETE',
       null,
@@ -693,14 +637,6 @@ describe('RestService', () => {
       undefined,
       testparam,
       HttpStatusCode.Ok, 'OK'
-    );
-    testNetworkError(
-      serviceInstance.deletePSetItem(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.deletePSetItem(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -720,8 +656,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = 1024;
     let testurl = `mock-host/webapi/v3/jobs/${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.deleteJob(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.deleteJob(testparam),
       testurl,
       'DELETE',
       null,
@@ -729,14 +665,6 @@ describe('RestService', () => {
       undefined,
       true,
       HttpStatusCode.NoContent, 'NoContent'
-    );
-    testNetworkError(
-      serviceInstance.deleteJob(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.deleteJob(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -785,8 +713,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = 'mock-folder';
     let testurl = `mock-host/webapi/v3/backuprestore/metadata?folder=${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.getBackupMetadata(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.getBackupMetadata(testparam),
       testurl,
       'GET',
       null,
@@ -794,14 +722,6 @@ describe('RestService', () => {
       undefined,
       { foo: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getBackupMetadata(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getBackupMetadata(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -820,8 +740,8 @@ describe('RestService', () => {
   it('should process method getCategories() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/category/list`;
-    testValidRequest(
-      serviceInstance.getCategories(),
+    testValidAndBasicErrors(
+      () => serviceInstance.getCategories(),
       testurl,
       'GET',
       null,
@@ -829,14 +749,6 @@ describe('RestService', () => {
       undefined,
       [{ foo: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getCategories(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getCategories(),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -856,8 +768,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = 'mock-uuid';
     let testurl = `mock-host/webapi/v3/category/${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.getCategory(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.getCategory(testparam),
       testurl,
       'GET',
       null,
@@ -865,14 +777,6 @@ describe('RestService', () => {
       undefined,
       { foo: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getCategory(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getCategory(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -892,8 +796,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = 'mock-uuid';
     let testurl = `mock-host/webapi/v3/category/references/${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.getCategoryRefs(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.getCategoryRefs(testparam),
       testurl,
       'GET',
       null,
@@ -901,14 +805,6 @@ describe('RestService', () => {
       undefined,
       [{ foo: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getCategoryRefs(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getCategoryRefs(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -945,8 +841,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam: 'keystore' | 'truststore' = 'keystore';
     let testurl = `mock-host/webapi/v3/certificate/list/${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.getCertStoreItems(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.getCertStoreItems(testparam),
       testurl,
       'GET',
       null,
@@ -954,14 +850,6 @@ describe('RestService', () => {
       undefined,
       [{ foo: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getCertStoreItems(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getCertStoreItems(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -980,8 +868,8 @@ describe('RestService', () => {
   it('should process method getClusterStatus() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/server/cluster`;
-    testValidRequest(
-      serviceInstance.getClusterStatus(),
+    testValidAndBasicErrors(
+      () => serviceInstance.getClusterStatus(),
       testurl,
       'GET',
       null,
@@ -989,14 +877,6 @@ describe('RestService', () => {
       undefined,
       { foo: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getClusterStatus(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getClusterStatus(),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1016,8 +896,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = 'mock-uuid';
     let testurl = `mock-host/webapi/v3/config/children?uuid=${encodeURIComponent(testparam)}&maxDeep=0`;
-    testValidRequest(
-      serviceInstance.getConfigChildren(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.getConfigChildren(testparam),
       testurl,
       'GET',
       null,
@@ -1025,14 +905,6 @@ describe('RestService', () => {
       undefined,
       [{ foo: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getConfigChildren(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getConfigChildren(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1069,8 +941,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = 'mock-uuid';
     let testurl = `mock-host/webapi/v3/config/${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.getConfigItem(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.getConfigItem(testparam),
       testurl,
       'GET',
       null,
@@ -1078,14 +950,6 @@ describe('RestService', () => {
       undefined,
       { foo: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getConfigItem(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getConfigItem(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1105,8 +969,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = 'mock-uuid';
     let testurl = `mock-host/webapi/v3/config/path/${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.getConfigPath(testparam),
+    testValidAndBasicErrors(
+      () => serviceInstance.getConfigPath(testparam),
       testurl,
       'GET',
       null,
@@ -1114,14 +978,6 @@ describe('RestService', () => {
       undefined,
       'mock-response',
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getConfigPath(testparam),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getConfigPath(testparam),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1141,8 +997,8 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparam = true;
     let testurl = `mock-host/webapi/v3/server/list/clientInformation?showAll=${encodeURIComponent(testparam)}`;
-    testValidRequest(
-      serviceInstance.getConnectedClients(),
+    testValidAndBasicErrors(
+      () => serviceInstance.getConnectedClients(),
       testurl,
       'GET',
       null,
@@ -1150,14 +1006,6 @@ describe('RestService', () => {
       undefined,
       [{ value: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getConnectedClients(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getConnectedClients(),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1193,8 +1041,8 @@ describe('RestService', () => {
   it('should process method getCurrentUser() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/currentUser`;
-    testValidRequest(
-      serviceInstance.getCurrentUser(),
+    testValidAndBasicErrors(
+      () => serviceInstance.getCurrentUser(),
       testurl,
       'GET',
       null,
@@ -1202,14 +1050,6 @@ describe('RestService', () => {
       undefined,
       { value: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getCurrentUser(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getCurrentUser(),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1228,8 +1068,8 @@ describe('RestService', () => {
   it('should process method getCurrentUsersPermissions() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/users/currentUser/permissions`;
-    testValidRequest(
-      serviceInstance.getCurrentUsersPermissions(),
+    testValidAndBasicErrors(
+      () => serviceInstance.getCurrentUsersPermissions(),
       testurl,
       'GET',
       null,
@@ -1237,14 +1077,6 @@ describe('RestService', () => {
       undefined,
       ['mock-perm1', 'mock-perm2'],
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getCurrentUsersPermissions(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getCurrentUsersPermissions(),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1263,8 +1095,8 @@ describe('RestService', () => {
   it('should process method getCurrentUsersRoles() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/users/currentUser/roles`;
-    testValidRequest(
-      serviceInstance.getCurrentUsersRoles(),
+    testValidAndBasicErrors(
+      () => serviceInstance.getCurrentUsersRoles(),
       testurl,
       'GET',
       null,
@@ -1272,14 +1104,6 @@ describe('RestService', () => {
       undefined,
       ['mock-role1', 'mock-role2'],
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getCurrentUsersRoles(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getCurrentUsersRoles(),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1298,8 +1122,8 @@ describe('RestService', () => {
   it('should process method getDevices() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/server/list/devices`;
-    testValidRequest(
-      serviceInstance.getDevices(),
+    testValidAndBasicErrors(
+      () => serviceInstance.getDevices(),
       testurl,
       'GET',
       null,
@@ -1307,14 +1131,6 @@ describe('RestService', () => {
       undefined,
       [{ value: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getDevices(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getDevices(),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1349,8 +1165,8 @@ describe('RestService', () => {
   it('should process method getJndiDatabaseStructure() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/server/db/listAttributes/System?isNativeCall=true`;
-    testValidRequest(
-      serviceInstance.getJndiDatabaseStructure(),
+    testValidAndBasicErrors(
+      () => serviceInstance.getJndiDatabaseStructure(),
       testurl,
       'GET',
       null,
@@ -1358,14 +1174,6 @@ describe('RestService', () => {
       undefined,
       SystemJndiDefResponse,
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getJndiDatabaseStructure(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getJndiDatabaseStructure(),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1418,8 +1226,8 @@ describe('RestService', () => {
   it('should process method getJndiConnectionNames() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/server/db/listJNDI`;
-    testValidRequest(
-      serviceInstance.getJndiConnectionNames(),
+    testValidAndBasicErrors(
+      () => serviceInstance.getJndiConnectionNames(),
       testurl,
       'GET',
       null,
@@ -1427,14 +1235,6 @@ describe('RestService', () => {
       undefined,
       ['mock-jndi1', 'mock-jndi2'],
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getJndiConnectionNames(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getJndiConnectionNames(),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1453,8 +1253,8 @@ describe('RestService', () => {
   it('should process method getJob() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/jobs/1024`;
-    testValidRequest(
-      serviceInstance.getJob(1024),
+    testValidAndBasicErrors(
+      () => serviceInstance.getJob(1024),
       testurl,
       'GET',
       null,
@@ -1462,14 +1262,6 @@ describe('RestService', () => {
       undefined,
       { id: 1024, title: 'mock-title' },
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getJob(1024),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getJob(1024),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -1488,8 +1280,8 @@ describe('RestService', () => {
   it('should process method getJobDir() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/server/jobsDir`;
-    testValidRequest(
-      serviceInstance.getJobDir(),
+    testValidAndBasicErrors(
+      () => serviceInstance.getJobDir(),
       testurl,
       'GET',
       null,
@@ -1497,14 +1289,6 @@ describe('RestService', () => {
       undefined,
       'mock-dir',
       HttpStatusCode.Ok, 'Ok'
-    );
-    testNetworkError(
-      serviceInstance.getJobDir(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      serviceInstance.getJobDir(),
-      testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
