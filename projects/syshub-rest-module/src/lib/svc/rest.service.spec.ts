@@ -1761,6 +1761,33 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getSyslogHostnames() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/syslogs/hostNames`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getSyslogHostnames(),
+      testurl,
+      'GET',
+      null,
+      { result: [{ "col-1": "mock-1" }, { "col-1": "mock-2" }] },
+      undefined,
+      ['mock-1', 'mock-2'],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getSyslogHostnames(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getSyslogHostnames(),
+      testurl
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
