@@ -124,7 +124,7 @@ describe('RestService', () => {
       sub?.unsubscribe();
       payload = undefined;
     });
-  }
+  };
 
   function testNetworkError(subject: Observable<any>, expectUrl: string): void {
     let payload: any;
@@ -132,7 +132,20 @@ describe('RestService', () => {
     let request = httpTestingController.expectOne(expectUrl, 'Url called');
     request.flush(null, { status: 0, statusText: '' });
     expect(payload).withContext('testNetworkError: Match returned content').toBeInstanceOf(NetworkError);
-  }
+  };
+
+  function testNotLoggedinError(params: { serviceInstance: RestService, fn: Function, }[]): void {
+    let payload: any;
+    let sub: Subscription;
+    params.forEach((param) => {
+      sub = (<Observable<any>>param.fn()).subscribe((subject_payload) => payload = subject_payload);
+      expect(param.serviceInstance.getIsLoggedIn()).withContext(`testUnauthorizedError: Logged in state for ${param.fn}`).toBeFalse();
+      tick(10);
+      expect(payload ? payload['status'] : null).withContext(`testUnauthorizedError: Return code for ${param.fn}`).toEqual(401);
+      sub?.unsubscribe();
+      payload = undefined;
+    });
+  };
 
   function testStatusNotExpectedError(subject: Observable<any>, expectUrl: string): void {
     let payload: any;
@@ -140,7 +153,7 @@ describe('RestService', () => {
     let request = httpTestingController.expectOne(expectUrl, 'Url called');
     request.flush(null, { status: HttpStatusCode.NotFound, statusText: 'Not Found' });
     expect(payload).withContext('testStatusNotExpectedError: Match returned content').toBeInstanceOf(StatusNotExpectedError);
-  }
+  };
 
   function testUnauthorizedError(params: [Function, string, any?][]): void {
     let payload: any;
@@ -157,7 +170,7 @@ describe('RestService', () => {
       sub?.unsubscribe();
       payload = undefined;
     });
-  }
+  };
 
   function testCustomValidation(subject: any, expectUrl: string, expectRequestMethod: string, expectedRequestBody: any, sendResponse: any, sendHeader: { [key: string]: string } | undefined, expectedResponse: any, status: HttpStatusCode, statusText: string): void {
     let payload: any;
@@ -168,7 +181,7 @@ describe('RestService', () => {
     expect(request.request.body).withContext('Valid request: Match request body').toEqual(expectedRequestBody);
     request.flush(sendResponse, { status: status, statusText: statusText, headers: sendHeader });
     expect(payload).withContext('Valid request: Match returned content').toEqual(expectedResponse);
-  }
+  };
 
   it('should be created', () => {
     const serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
@@ -221,183 +234,25 @@ describe('RestService', () => {
     flush();
   }));
 
-  it('should send the correct request for GET endpoints', () => {
-    const testEndpoint = 'mock-endpoint/rel-0/rel-1?p0=&p1=foo-param';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
-    const subject = serviceInstance.get(testEndpoint);
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    let request = httpTestingController.expectOne(`mock-host/webapi/v3/${testEndpoint}`, 'Url called');
-    expect(request.request.method).withContext('Request method').toEqual('GET');
-    expect(request.request.body).withContext('Request body').toBeNull();
-  });
-
-  it('should return error if not loggedin (delete)', fakeAsync(() => {
-    let payload: any;
+  it('should return error if not loggedin for all generic methods like get() or head()', fakeAsync(() => {
     const testEndpoint = 'mock-endpoint';
     const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    const subject = serviceInstance.delete(testEndpoint);
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    tick(10);
-    expect(payload ? payload['status'] : null).withContext('Returned error state').toEqual(401);
-    flush();
-  }));
-
-  it('should return error if not loggedin (deletec)', fakeAsync(() => {
-    let payload: any;
-    const testEndpoint = 'mock-endpoint';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    const subject = serviceInstance.deletec(testEndpoint);
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    tick(10);
-    expect(payload ? payload['status'] : null).withContext('Returned error state').toEqual(401);
-    flush();
-  }));
-
-  it('should return error if not loggedin (get)', fakeAsync(() => {
-    let payload: any;
-    const testEndpoint = 'mock-endpoint';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    const subject = serviceInstance.get(testEndpoint);
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    tick(10);
-    expect(payload ? payload['status'] : null).withContext('Returned error state').toEqual(401);
-    flush();
-  }));
-
-  it('should return error if not loggedin (getc)', fakeAsync(() => {
-    let payload: any;
-    const testEndpoint = 'mock-endpoint';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    const subject = serviceInstance.getc(testEndpoint);
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    tick(10);
-    expect(payload ? payload['status'] : null).withContext('Returned error state').toEqual(401);
-    flush();
-  }));
-
-  it('should return error if not loggedin (head)', fakeAsync(() => {
-    const testEndpoint = 'mock-endpoint';
-    const mocksettings = <any>{ ...mockOauthSettings };
-    mocksettings.throwErrors = true;
-    const serviceInstance: RestService = new RestService(<Settings><any>mocksettings, httpClient);
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(() => serviceInstance.head(testEndpoint)).withContext('Returned error state').toThrowError(/^The user is not loggedin*/);
-    flush();
-  }));
-
-  it('should return error if not loggedin (headc)', fakeAsync(() => {
-    const testEndpoint = 'mock-endpoint';
-    const mocksettings = <any>{ ...mockOauthSettings };
-    mocksettings.throwErrors = true;
-    const serviceInstance: RestService = new RestService(<Settings><any>mocksettings, httpClient);
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(() => serviceInstance.headc(testEndpoint)).withContext('Returned error state').toThrowError(/^The user is not loggedin*/);
-    flush();
-  }));
-
-  it('should return error if not loggedin (options)', fakeAsync(() => {
-    const testEndpoint = 'mock-endpoint';
-    const mocksettings = <any>{ ...mockOauthSettings };
-    mocksettings.throwErrors = true;
-    const serviceInstance: RestService = new RestService(<Settings><any>mocksettings, httpClient);
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(() => serviceInstance.options(testEndpoint)).withContext('Returned error state').toThrowError(/^The user is not loggedin*/);
-    flush();
-  }));
-
-  it('should return error if not loggedin (optionsc)', fakeAsync(() => {
-    const testEndpoint = 'mock-endpoint';
-    const mocksettings = <any>{ ...mockOauthSettings };
-    mocksettings.throwErrors = true;
-    const serviceInstance: RestService = new RestService(<Settings><any>mocksettings, httpClient);
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(() => serviceInstance.optionsc(testEndpoint)).withContext('Returned error state').toThrowError(/^The user is not loggedin*/);
-    flush();
-  }));
-
-  it('should return error if not loggedin (patch)', fakeAsync(() => {
-    let payload: any;
-    const testEndpoint = 'mock-endpoint';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    const subject = serviceInstance.patch(testEndpoint, {});
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    tick(10);
-    expect(payload ? payload['status'] : null).withContext('Returned error state').toEqual(401);
-    flush();
-  }));
-
-  it('should return error if not loggedin (patchc)', fakeAsync(() => {
-    let payload: any;
-    const testEndpoint = 'mock-endpoint';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    const subject = serviceInstance.patchc(testEndpoint, {});
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    tick(10);
-    expect(payload ? payload['status'] : null).withContext('Returned error state').toEqual(401);
-    flush();
-  }));
-
-  it('should return error if not loggedin (post)', fakeAsync(() => {
-    let payload: any;
-    const testEndpoint = 'mock-endpoint';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    const subject = serviceInstance.post(testEndpoint, {});
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    tick(10);
-    expect(payload ? payload['status'] : null).withContext('Returned error state').toEqual(401);
-    flush();
-  }));
-
-  it('should return error if not loggedin (postc)', fakeAsync(() => {
-    let payload: any;
-    const testEndpoint = 'mock-endpoint';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    const subject = serviceInstance.postc(testEndpoint, {});
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    tick(10);
-    expect(payload ? payload['status'] : null).withContext('Returned error state').toEqual(401);
-    flush();
-  }));
-
-  it('should return error if not loggedin (put)', fakeAsync(() => {
-    let payload: any;
-    const testEndpoint = 'mock-endpoint';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    const subject = serviceInstance.put(testEndpoint, {});
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    tick(10);
-    expect(payload ? payload['status'] : null).withContext('Returned error state').toEqual(401);
-    flush();
-  }));
-
-  it('should return error if not loggedin (putc)', fakeAsync(() => {
-    let payload: any;
-    const testEndpoint = 'mock-endpoint';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    const subject = serviceInstance.putc(testEndpoint, {});
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    expect(serviceInstance.getIsLoggedIn()).withContext('Should not be loggedin').toBeFalse();
-    expect(subject).withContext('Return value is correct').toBeInstanceOf(Subject<Response>);
-    tick(10);
-    expect(payload ? payload['status'] : null).withContext('Returned error state').toEqual(401);
+    testNotLoggedinError([
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.delete(testEndpoint) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.deletec(testEndpoint) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.get(testEndpoint) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.getc(testEndpoint) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.head(testEndpoint) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.headc(testEndpoint) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.options(testEndpoint) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.optionsc(testEndpoint) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.patch(testEndpoint, {}) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.patchc(testEndpoint, {}) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.post(testEndpoint, {}) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.postc(testEndpoint, {}) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.put(testEndpoint, {}) },
+      { serviceInstance: serviceInstance, fn: () => serviceInstance.putc(testEndpoint, {}) },
+    ]);
     flush();
   }));
 
@@ -482,11 +337,13 @@ describe('RestService', () => {
       [() => serviceInstance.createJob(<SyshubJob><any>{}), 'mock-host/webapi/v3/jobs'],
       [() => serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>{}), 'mock-host/webapi/v3/syslogs'],
       [() => serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>{}), 'mock-host/webapi/v3/userlogs'],
+      [() => serviceInstance.delete('category'), 'mock-host/webapi/v3/category', { content: null, status: 401 }],
       [() => serviceInstance.deletec('category'), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
       [() => serviceInstance.deleteCategory(''), 'mock-host/webapi/v3/category/'],
       [() => serviceInstance.deleteConfigItem(''), 'mock-host/webapi/v3/config/'],
       [() => serviceInstance.deleteJob(1), 'mock-host/webapi/v3/jobs/1'],
       [() => serviceInstance.deletePSetItem(''), 'mock-host/webapi/v3/parameterset/'],
+      [() => serviceInstance.get('category'), 'mock-host/webapi/v3/category', { content: null, status: 401 }],
       [() => serviceInstance.getc('category'), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
       [() => serviceInstance.getBackupMetadata(''), 'mock-host/webapi/v3/backuprestore/metadata?folder='],
       [() => serviceInstance.getCategories(), 'mock-host/webapi/v3/category/list'],
@@ -531,6 +388,8 @@ describe('RestService', () => {
       [() => serviceInstance.getWorkflowReferences(''), 'mock-host/webapi/v3/workflows/checkReferences?uuid='],
       [() => serviceInstance.getWorkflowStartpoints(''), 'mock-host/webapi/v3/server/startPoint/list/'],
       [() => serviceInstance.getWorkflowVersions(''), 'mock-host/webapi/v3/workflows//versions'],
+      [() => serviceInstance.head('category'), 'mock-host/webapi/v3/category', { content: null, status: 401 }],
+      [() => serviceInstance.headc('category'), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
     ])
     flush();
   }));
@@ -586,6 +445,14 @@ describe('RestService', () => {
         status: HttpStatusCode.Created, statusText: 'Created'
       },
       {
+        fn: () => serviceInstance.delete('category'),
+        url: `mock-host/webapi/v3/category`, method: 'DELETE',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithStr,
+        expectedResponse: simpleCustomResponse,
+        includeErrorTests: false
+      },
+      {
         fn: () => serviceInstance.deletec('category'),
         url: `mock-host/webapi/custom/category`, method: 'DELETE',
         expectedRequestBody: null,
@@ -620,6 +487,14 @@ describe('RestService', () => {
         expectedRequestBody: null,
         sendResponse: true,
         status: HttpStatusCode.NoContent, statusText: 'NoContent'
+      },
+      {
+        fn: () => serviceInstance.get('category'),
+        url: `mock-host/webapi/v3/category`, method: 'GET',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithStr,
+        expectedResponse: simpleCustomResponse,
+        includeErrorTests: false
       },
       {
         fn: () => serviceInstance.getc('category'),
@@ -996,6 +871,22 @@ describe('RestService', () => {
         url: `mock-host/webapi/v3/workflows/${encodeURIComponent('mock-/uuid')}/versions`, method: 'GET',
         expectedRequestBody: null,
         sendResponse: simpleObjectWithChildrenArray.children
+      },
+      {
+        fn: () => serviceInstance.head('category'),
+        url: `mock-host/webapi/v3/category`, method: 'HEAD',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithStr,
+        expectedResponse: simpleCustomResponse,
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.headc('category'),
+        url: `mock-host/webapi/custom/category`, method: 'HEAD',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithStr,
+        expectedResponse: simpleCustomResponse,
+        includeErrorTests: false
       },
     ])
     flush();
