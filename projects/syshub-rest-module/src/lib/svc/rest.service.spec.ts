@@ -4,7 +4,7 @@ import { HttpClient, HttpErrorResponse, HttpEventType, HttpStatusCode } from '@a
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs';
 import { TestBed, fakeAsync, flush, tick } from '@angular/core/testing';
-import { StatusNotExpectedError, UnauthorizedError, NetworkError, MissingScopeError } from '../error';
+import { StatusNotExpectedError, UnauthorizedError, NetworkError, MissingScopeError, NotLoggedinError } from '../error';
 import { Token } from '../session';
 import { SyshubCategory, SyshubJob, SyshubJobToPatch, SyshubSyslogEntryToCreate, SyshubUserlogEntryToCreate } from '../types';
 
@@ -236,7 +236,7 @@ describe('RestService', () => {
 
   it('should return error if not loggedin for all generic methods like get() or head()', fakeAsync(() => {
     const testEndpoint = 'mock-endpoint';
-    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    let serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
     testNotLoggedinError([
       { serviceInstance: serviceInstance, fn: () => serviceInstance.delete(testEndpoint) },
       { serviceInstance: serviceInstance, fn: () => serviceInstance.deletec(testEndpoint) },
@@ -253,6 +253,10 @@ describe('RestService', () => {
       { serviceInstance: serviceInstance, fn: () => serviceInstance.put(testEndpoint, {}) },
       { serviceInstance: serviceInstance, fn: () => serviceInstance.putc(testEndpoint, {}) },
     ]);
+    let tempsettings = <any>{ ...mockOauthSettings };
+    tempsettings.throwErrors = true;
+    serviceInstance = new RestService(<Settings><any>tempsettings, httpClient);
+    expect(() => serviceInstance.delete(testEndpoint)).withContext('Should throw an error if enabled').toThrow(new NotLoggedinError());
     flush();
   }));
 
@@ -298,7 +302,11 @@ describe('RestService', () => {
       () => serviceInstance.getWorkflowReferences(''),
       () => serviceInstance.getWorkflowStartpoints(''),
       () => serviceInstance.getWorkflowVersions(''),
-    ])
+    ]);
+    let tempsettings = <any>{ ...mockOauthSettingsPublicOnly };
+    tempsettings.throwErrors = true;
+    serviceInstance = new RestService(<Settings><any>tempsettings, httpClient);
+    expect(() => serviceInstance.getCategory('')).withContext('Should throw an error if enabled').toThrow(new MissingScopeError('private'));
     flush();
   }));
 
@@ -326,7 +334,11 @@ describe('RestService', () => {
       () => serviceInstance.getWorkflowExecutions(),
       () => serviceInstance.patchJob(1, <SyshubJobToPatch><any>{}),
       () => serviceInstance.replaceJob(1, <SyshubJobToPatch><any>{}),
-    ])
+    ]);
+    let tempsettings = <any>{ ...mockOauthSettingsPrivateOnly };
+    tempsettings.throwErrors = true;
+    serviceInstance = new RestService(<Settings><any>tempsettings, httpClient);
+    expect(() => serviceInstance.getBackupMetadata('')).withContext('Should throw an error if enabled').toThrow(new MissingScopeError('public'));
     flush();
   }));
 
