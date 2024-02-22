@@ -1835,12 +1835,11 @@ export class RestService {
       return subject;
     this.runConsoleCommand('HELP').subscribe((response) => {
 
-      if (response instanceof StatusNotExpectedError) {
+      if (response instanceof Error) {
         subject.next(response);
         subject.complete();
         return;
       }
-
       response = <string[]>response;
       if (response.length < 10 || (response[0] ?? '') != 'Available commands:') {
         subject.next(new UnexpectedContentError(response));

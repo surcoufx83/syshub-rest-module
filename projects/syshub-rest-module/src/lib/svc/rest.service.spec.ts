@@ -4,7 +4,7 @@ import { HttpClient, HttpErrorResponse, HttpEventType, HttpStatusCode } from '@a
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs';
 import { TestBed, fakeAsync, flush, tick } from '@angular/core/testing';
-import { StatusNotExpectedError, UnauthorizedError, NetworkError, MissingScopeError, NotLoggedinError } from '../error';
+import { StatusNotExpectedError, UnauthorizedError, NetworkError, MissingScopeError, NotLoggedinError, UnexpectedContentError } from '../error';
 import { Token } from '../session';
 import { SyshubCategory, SyshubJob, SyshubJobToPatch, SyshubSyslogEntryToCreate, SyshubUserlogEntryToCreate } from '../types';
 
@@ -69,12 +69,12 @@ describe('RestService', () => {
   let subs: Subscription[] = [];
 
   const mockLoggedInLocalStorage = {
-    accessToken: "mock-accessToken",
+    accessToken: 'mock-accessToken',
     expiresIn: 2591999,
     grantTime: new Date(),
     granted: true,
-    refreshToken: "mock-refreshToken",
-    username: "mock-accessToken",
+    refreshToken: 'mock-refreshToken',
+    username: 'mock-accessToken',
     expiryTime: new Date(new Date().setSeconds((new Date()).getSeconds(), 2591999 * 1000))
   };
 
@@ -206,7 +206,7 @@ describe('RestService', () => {
     expect(request.request.body).withContext('Request body').toEqual('grant_type=refresh_token&refresh_token=mock-refreshToken&scope=private+public&client_id=mock-clientId&client_secret=mock-clientSecret');
     request.flush({ access_token: 'mock-new-accessToken', expiresIn: 3600, refresh_token: 'mock-new-refreshToken' }, { status: 200, statusText: 'OK' });
     tick(10);
-    let testvalue = JSON.parse(localStorage.getItem('authmod-session') ?? "{}");
+    let testvalue = JSON.parse(localStorage.getItem('authmod-session') ?? '{}');
     expect(testvalue['accessToken']).toEqual('mock-new-accessToken');
     expect(testvalue['refreshToken']).toEqual('mock-new-refreshToken');
     flush();
@@ -336,6 +336,7 @@ describe('RestService', () => {
       () => serviceInstance.replaceJob(1, <SyshubJobToPatch><any>{}),
       () => serviceInstance.restoreSyshub('', []),
       () => serviceInstance.runConsoleCommand('', []),
+      () => serviceInstance.runConsoleCommandHelp(),
     ]);
     let tempsettings = <any>{ ...mockOauthSettingsPrivateOnly };
     tempsettings.throwErrors = true;
@@ -418,6 +419,7 @@ describe('RestService', () => {
       [() => serviceInstance.replaceJob(1, {}), 'mock-host/webapi/v3/jobs/1'],
       [() => serviceInstance.restoreSyshub('', []), 'mock-host/webapi/v3/backuprestore/restore?folder='],
       [() => serviceInstance.runConsoleCommand('', []), 'mock-host/webapi/v3/consolecommands/execute/'],
+      [() => serviceInstance.runConsoleCommandHelp(), 'mock-host/webapi/v3/consolecommands/execute/HELP'],
     ])
     flush();
   }));
@@ -819,7 +821,7 @@ describe('RestService', () => {
         fn: () => serviceInstance.getSyslogHostnames(),
         url: `mock-host/webapi/v3/syslogs/hostNames`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: { result: [{ "col-1": "mock-1" }, { "col-1": "mock-2" }] },
+        sendResponse: { result: [{ 'col-1': 'mock-1' }, { 'col-1': 'mock-2' }] },
         expectedResponse: ['mock-1', 'mock-2'],
       },
       {
@@ -1006,6 +1008,70 @@ describe('RestService', () => {
         sendResponse: ['mock-1', 'mock-2'],
         status: HttpStatusCode.Accepted, statusText: 'Accepted'
       },
+      {
+        fn: () => serviceInstance.runConsoleCommandHelp(),
+        url: `mock-host/webapi/v3/consolecommands/execute/HELP`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: [
+          'Available commands:',
+          '',
+          '',
+          'AR\t\tList,acquires, removes or releases acquired semaphore resources',
+          'ADDINDEX\tAdd new index in the Lucene',
+          'BACKUP\t\tBackup system data to XML files',
+          'BACKUPJOBS\tBackup job entries to a XML file in the backup dir',
+          'CWFP\t\tCancel a running WorkflowProcessor by its id after the @',
+          'CLL\t\tChange the level of a logger',
+          'CI\t\tCommands to get information regarding cluster load and manage some distributed objects',
+          'CRONCMD\t\tCron Command: start, stop or restart a SchedulerCron task.',
+          'DB\t\tDisplay table statistics',
+          'DIAG\t\tCreates a diag zip-file',
+          'EXPORTPPK\tExport a package to a PPK or CEL file.',
+          'MEMGC\t\tRun the Garbage collector to free unused memory',
+        ],
+        expectedResponse: {
+          'AR': 'List,acquires, removes or releases acquired semaphore resources',
+          'ADDINDEX': 'Add new index in the Lucene',
+          'BACKUP': 'Backup system data to XML files',
+          'BACKUPJOBS': 'Backup job entries to a XML file in the backup dir',
+          'CWFP': 'Cancel a running WorkflowProcessor by its id after the @',
+          'CLL': 'Change the level of a logger',
+          'CI': 'Commands to get information regarding cluster load and manage some distributed objects',
+          'CRONCMD': 'Cron Command: start, stop or restart a SchedulerCron task.',
+          'DB': 'Display table statistics',
+          'DIAG': 'Creates a diag zip-file',
+          'EXPORTPPK': 'Export a package to a PPK or CEL file.',
+          'MEMGC': 'Run the Garbage collector to free unused memory'
+        },
+        status: HttpStatusCode.Accepted, statusText: 'Accepted'
+      },
+      {
+        fn: () => serviceInstance.runConsoleCommandHelp(),
+        url: `mock-host/webapi/v3/consolecommands/execute/HELP`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: ['mock-1'],
+        expectedResponse: new UnexpectedContentError(['mock-1']),
+        status: HttpStatusCode.Accepted, statusText: 'Accepted',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runConsoleCommandHelp(),
+        url: `mock-host/webapi/v3/consolecommands/execute/HELP`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: [null, 'mock-1', 'mock-2', 'mock-3', 'mock-4', 'mock-5', 'mock-6', 'mock-7', 'mock-8', 'mock-9'],
+        expectedResponse: new UnexpectedContentError([null, 'mock-1', 'mock-2', 'mock-3', 'mock-4', 'mock-5', 'mock-6', 'mock-7', 'mock-8', 'mock-9']),
+        status: HttpStatusCode.Accepted, statusText: 'Accepted',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runConsoleCommandHelp(),
+        url: `mock-host/webapi/v3/consolecommands/execute/HELP`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: [null, 'mock-1', 'mock-2', 'mock-3', 'mock-4', 'mock-5', 'mock-6', 'mock-7', 'mock-8', 'mock-9'],
+        expectedResponse: new UnexpectedContentError([null, 'mock-1', 'mock-2', 'mock-3', 'mock-4', 'mock-5', 'mock-6', 'mock-7', 'mock-8', 'mock-9']),
+        status: HttpStatusCode.Accepted, statusText: 'Accepted',
+        includeErrorTests: false
+      },
     ])
     flush();
   }));
@@ -1019,7 +1085,7 @@ describe('RestService', () => {
       testurl,
       'GET',
       null,
-      [{ text: "mock-tableName", node: [{ text: "foo" }] }],
+      [{ text: 'mock-tableName', node: [{ text: 'foo' }] }],
       undefined,
       [{ name: 'mock-tableName', columns: [] }],
       HttpStatusCode.Ok, 'Ok'
@@ -1028,112 +1094,149 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should throw console error in method runConsoleCommandHelp()', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/consolecommands/execute/HELP`;
+    spyOn(console, 'error');
+    testCustomValidation(
+      serviceInstance.runConsoleCommandHelp(),
+      testurl,
+      'POST',
+      [],
+      ['Available commands:',
+        'cmd1\t\tCommand 1 is the best',
+        'cmd2\t\tCommand 2 is the best',
+        'cmd3\t\tCommand 3 is the best',
+        'cmd4\t\tCommand 4 is the best',
+        'cmd5\t\tCommand 5 is the best',
+        'cmd6\t\tCommand 6 is the best',
+        'cmd7\t\tCommand 7 is the best',
+        'cmd8\t\tCommand 8 is the best',
+        'cmd-failes',
+      ],
+      undefined,
+      {
+        cmd1: 'Command 1 is the best',
+        cmd2: 'Command 2 is the best',
+        cmd3: 'Command 3 is the best',
+        cmd4: 'Command 4 is the best',
+        cmd5: 'Command 5 is the best',
+        cmd6: 'Command 6 is the best',
+        cmd7: 'Command 7 is the best',
+        cmd8: 'Command 8 is the best',
+      },
+      HttpStatusCode.Accepted, 'Accepted'
+    );
+    expect(console.error).withContext('Console receives error message').toHaveBeenCalledWith('Unexpected content in line 10: cmd-failes');
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
   {
-    "text": "config",
-    "node": [
+    'text': 'config',
+    'node': [
       {
-        "text": "uuid:varchar"
+        'text': 'uuid:varchar'
       },
       {
-        "text": "modifiedby:varchar"
+        'text': 'modifiedby:varchar'
       },
       {
-        "text": "modifiedtime:datetime2"
+        'text': 'modifiedtime:datetime2'
       },
       {
-        "text": "config_name:varchar"
+        'text': 'config_name:varchar'
       },
       {
-        "text": "config_type:int"
+        'text': 'config_type:int'
       },
       {
-        "text": "config_value:varchar"
+        'text': 'config_value:varchar'
       },
       {
-        "text": "description:varchar"
+        'text': 'description:varchar'
       },
       {
-        "text": "parentuuid:varchar"
+        'text': 'parentuuid:varchar'
       }
     ]
   },
   {
-    "text": "filestatus",
-    "node": [
+    'text': 'filestatus',
+    'node': [
       {
-        "text": "id:bigint identity"
+        'text': 'id:bigint identity'
       },
       {
-        "text": "jobid:bigint"
+        'text': 'jobid:bigint'
       },
       {
-        "text": "sourcejobid:bigint"
+        'text': 'sourcejobid:bigint'
       },
       {
-        "text": "packageid:bigint"
+        'text': 'packageid:bigint'
       },
       {
-        "text": "status:int"
+        'text': 'status:int'
       },
       {
-        "text": "textstatus:varchar"
+        'text': 'textstatus:varchar'
       },
       {
-        "text": "filename:varchar"
+        'text': 'filename:varchar'
       },
       {
-        "text": "filetype:varchar"
+        'text': 'filetype:varchar'
       },
       {
-        "text": "datatype:varchar"
+        'text': 'datatype:varchar'
       },
       {
-        "text": "application:varchar"
+        'text': 'application:varchar'
       },
       {
-        "text": "host:varchar"
+        'text': 'host:varchar'
       },
       {
-        "text": "xid:varchar"
+        'text': 'xid:varchar'
       },
       {
-        "text": "pages:int"
+        'text': 'pages:int'
       },
       {
-        "text": "documents:int"
+        'text': 'documents:int'
       },
       {
-        "text": "prpages:int"
+        'text': 'prpages:int'
       },
       {
-        "text": "customfield:varchar"
+        'text': 'customfield:varchar'
       },
       {
-        "text": "customfield1:varchar"
+        'text': 'customfield1:varchar'
       },
       {
-        "text": "customfield2:varchar"
+        'text': 'customfield2:varchar'
       },
       {
-        "text": "customfield3:varchar"
+        'text': 'customfield3:varchar'
       },
       {
-        "text": "customfield4:varchar"
+        'text': 'customfield4:varchar'
       },
       {
-        "text": "modifiedby:varchar"
+        'text': 'modifiedby:varchar'
       },
       {
-        "text": "modifiedtime:datetime2"
+        'text': 'modifiedtime:datetime2'
       },
       {
-        "text": "customdata:varbinary"
+        'text': 'customdata:varbinary'
       },
       {
-        "text": "deldate:datetime2"
+        'text': 'deldate:datetime2'
       }
     ]
   },
@@ -1141,108 +1244,108 @@ export const SystemJndiDef = [
 
 export const SystemNativeJndiDef = [
   {
-    "text": "config",
-    "node": [
+    'text': 'config',
+    'node': [
       {
-        "text": "uuid:varchar"
+        'text': 'uuid:varchar'
       },
       {
-        "text": "modifiedby:varchar"
+        'text': 'modifiedby:varchar'
       },
       {
-        "text": "modifiedtime:datetime2"
+        'text': 'modifiedtime:datetime2'
       },
       {
-        "text": "config_name:varchar"
+        'text': 'config_name:varchar'
       },
       {
-        "text": "config_type:int"
+        'text': 'config_type:int'
       },
       {
-        "text": "config_value:varchar"
+        'text': 'config_value:varchar'
       },
       {
-        "text": "description:varchar"
+        'text': 'description:varchar'
       },
       {
-        "text": "parentuuid:varchar"
+        'text': 'parentuuid:varchar'
       }
     ]
   },
   {
-    "text": "filestatus",
-    "node": [
+    'text': 'filestatus',
+    'node': [
       {
-        "text": "id:bigint identity"
+        'text': 'id:bigint identity'
       },
       {
-        "text": "jobid:bigint"
+        'text': 'jobid:bigint'
       },
       {
-        "text": "sourcejobid:bigint"
+        'text': 'sourcejobid:bigint'
       },
       {
-        "text": "packageid:bigint"
+        'text': 'packageid:bigint'
       },
       {
-        "text": "status:int"
+        'text': 'status:int'
       },
       {
-        "text": "textstatus:varchar"
+        'text': 'textstatus:varchar'
       },
       {
-        "text": "filename:varchar"
+        'text': 'filename:varchar'
       },
       {
-        "text": "filetype:varchar"
+        'text': 'filetype:varchar'
       },
       {
-        "text": "datatype:varchar"
+        'text': 'datatype:varchar'
       },
       {
-        "text": "application:varchar"
+        'text': 'application:varchar'
       },
       {
-        "text": "host:varchar"
+        'text': 'host:varchar'
       },
       {
-        "text": "xid:varchar"
+        'text': 'xid:varchar'
       },
       {
-        "text": "pages:int"
+        'text': 'pages:int'
       },
       {
-        "text": "documents:int"
+        'text': 'documents:int'
       },
       {
-        "text": "prpages:int"
+        'text': 'prpages:int'
       },
       {
-        "text": "customfield:varchar"
+        'text': 'customfield:varchar'
       },
       {
-        "text": "customfield1:varchar"
+        'text': 'customfield1:varchar'
       },
       {
-        "text": "customfield2:varchar"
+        'text': 'customfield2:varchar'
       },
       {
-        "text": "customfield3:varchar"
+        'text': 'customfield3:varchar'
       },
       {
-        "text": "customfield4:varchar"
+        'text': 'customfield4:varchar'
       },
       {
-        "text": "modifiedby:varchar"
+        'text': 'modifiedby:varchar'
       },
       {
-        "text": "modifiedtime:datetime2"
+        'text': 'modifiedtime:datetime2'
       },
       {
-        "text": "customdata:varbinary"
+        'text': 'customdata:varbinary'
       },
       {
-        "text": "deldate:datetime2"
+        'text': 'deldate:datetime2'
       }
     ]
   },
@@ -1250,204 +1353,204 @@ export const SystemNativeJndiDef = [
 
 export const SystemJndiDefResponse = [
   {
-    "name": "config",
-    "columns": [
+    'name': 'config',
+    'columns': [
       {
-        "name": "uuid",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'uuid',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "modifiedby",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'modifiedby',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "modifiedtime",
-        "datatype": "datetime2",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'modifiedtime',
+        'datatype': 'datetime2',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "config_name",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'config_name',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "config_type",
-        "datatype": "int",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'config_type',
+        'datatype': 'int',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "config_value",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'config_value',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "description",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'description',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "parentuuid",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'parentuuid',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       }
     ]
   },
   {
-    "name": "filestatus",
-    "columns": [
+    'name': 'filestatus',
+    'columns': [
       {
-        "name": "id",
-        "datatype": "bigint",
-        "isIdColumn": true,
-        "isUnique": false
+        'name': 'id',
+        'datatype': 'bigint',
+        'isIdColumn': true,
+        'isUnique': false
       },
       {
-        "name": "jobid",
-        "datatype": "bigint",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'jobid',
+        'datatype': 'bigint',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "sourcejobid",
-        "datatype": "bigint",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'sourcejobid',
+        'datatype': 'bigint',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "packageid",
-        "datatype": "bigint",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'packageid',
+        'datatype': 'bigint',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "status",
-        "datatype": "int",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'status',
+        'datatype': 'int',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "textstatus",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'textstatus',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "filename",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'filename',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "filetype",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'filetype',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "datatype",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'datatype',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "application",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'application',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "host",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'host',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "xid",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'xid',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "pages",
-        "datatype": "int",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'pages',
+        'datatype': 'int',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "documents",
-        "datatype": "int",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'documents',
+        'datatype': 'int',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "prpages",
-        "datatype": "int",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'prpages',
+        'datatype': 'int',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "customfield",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'customfield',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "customfield1",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'customfield1',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "customfield2",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'customfield2',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "customfield3",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'customfield3',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "customfield4",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'customfield4',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "modifiedby",
-        "datatype": "varchar",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'modifiedby',
+        'datatype': 'varchar',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "modifiedtime",
-        "datatype": "datetime2",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'modifiedtime',
+        'datatype': 'datetime2',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "customdata",
-        "datatype": "varbinary",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'customdata',
+        'datatype': 'varbinary',
+        'isIdColumn': false,
+        'isUnique': false
       },
       {
-        "name": "deldate",
-        "datatype": "datetime2",
-        "isIdColumn": false,
-        "isUnique": false
+        'name': 'deldate',
+        'datatype': 'datetime2',
+        'isIdColumn': false,
+        'isUnique': false
       }
     ]
   }
