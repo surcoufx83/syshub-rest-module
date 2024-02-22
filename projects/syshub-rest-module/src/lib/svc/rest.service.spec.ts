@@ -1554,6 +1554,62 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getPsetItem() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/parameterset/${encodeURIComponent(testparam)}`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getPsetItem(testparam),
+      testurl,
+      'GET',
+      null,
+      { foo: 'mock-response' },
+      undefined,
+      { foo: 'mock-response' },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getPsetItem(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getPsetItem(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getPsetPath() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/parameterset/path/${encodeURIComponent(testparam)}`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getPsetPath(testparam),
+      testurl,
+      'GET',
+      null,
+      { value: 'mock-response' },
+      undefined,
+      'mock-response',
+      HttpStatusCode.Ok, 'Ok'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getPsetPath(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getPsetPath(testparam),
+      testurl
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
