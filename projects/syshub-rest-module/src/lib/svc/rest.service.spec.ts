@@ -1116,7 +1116,7 @@ describe('RestService', () => {
     let testparam = true;
     let testurl = `mock-host/webapi/v3/server/list/clientInformation?showAll=${encodeURIComponent(testparam)}`;
     testValidRequest(
-      serviceInstance.getConnectedClients(testparam),
+      serviceInstance.getConnectedClients(),
       testurl,
       'GET',
       null,
@@ -1126,22 +1126,22 @@ describe('RestService', () => {
       HttpStatusCode.Ok, 'Ok'
     );
     testNetworkError(
-      serviceInstance.getConnectedClients(testparam),
+      serviceInstance.getConnectedClients(),
       testurl
     );
     testStatusNotExpectedError(
-      serviceInstance.getConnectedClients(testparam),
+      serviceInstance.getConnectedClients(),
       testurl
     );
     localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
     serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
     testUnauthorizedError(
-      serviceInstance.getConnectedClients(testparam),
+      serviceInstance.getConnectedClients(),
       testurl
     );
     serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
     testMissingScopeError(
-      serviceInstance.getConnectedClients(testparam),
+      serviceInstance.getConnectedClients(),
       testurl
     );
     flush();
