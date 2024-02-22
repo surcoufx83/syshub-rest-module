@@ -1858,6 +1858,33 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getUsers() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/users`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getUsers(),
+      testurl,
+      'GET',
+      null,
+      [{ mock: 'test-item' }],
+      undefined,
+      [{ mock: 'test-item' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getUsers(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getUsers(),
+      testurl
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
