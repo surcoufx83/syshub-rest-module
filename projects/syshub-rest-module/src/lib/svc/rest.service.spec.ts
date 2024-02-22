@@ -396,6 +396,8 @@ describe('RestService', () => {
       [() => serviceInstance.patch('category', {}), 'mock-host/webapi/v3/category', { content: null, status: 401 }],
       [() => serviceInstance.patchc('category', {}), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
       [() => serviceInstance.patchJob(1, {}), 'mock-host/webapi/v3/jobs/1'],
+      [() => serviceInstance.post('category', {}), 'mock-host/webapi/v3/category', { content: null, status: 401 }],
+      [() => serviceInstance.postc('category', {}), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
     ])
     flush();
   }));
@@ -931,6 +933,22 @@ describe('RestService', () => {
         url: `mock-host/webapi/v3/jobs/1`, method: 'PATCH',
         expectedRequestBody: simpleObjectWithId,
         sendResponse: simpleObjectWithStr
+      },
+      {
+        fn: () => serviceInstance.post('category', simpleObjectWithId),
+        url: `mock-host/webapi/v3/category`, method: 'POST',
+        expectedRequestBody: simpleObjectWithId,
+        sendResponse: simpleObjectWithStr,
+        expectedResponse: simpleCustomResponse,
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.postc('category', simpleObjectWithId),
+        url: `mock-host/webapi/custom/category`, method: 'POST',
+        expectedRequestBody: simpleObjectWithId,
+        sendResponse: simpleObjectWithStr,
+        expectedResponse: simpleCustomResponse,
+        includeErrorTests: false
       },
     ])
     flush();
