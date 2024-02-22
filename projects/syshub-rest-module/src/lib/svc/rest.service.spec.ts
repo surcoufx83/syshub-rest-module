@@ -1664,6 +1664,33 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getServerProperties() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/server/properties`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getServerProperties(),
+      testurl,
+      'GET',
+      null,
+      { info1: 'foo', info2: true, info3: null },
+      undefined,
+      { info1: 'foo', info2: true, info3: null },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getServerProperties(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getServerProperties(),
+      testurl
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
