@@ -1509,6 +1509,51 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getPsetChildren() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/parameterset/children?uuid=${encodeURIComponent(testparam)}&maxDeep=0`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getPsetChildren(testparam),
+      testurl,
+      'GET',
+      null,
+      [{ foo: 'mock-response' }],
+      undefined,
+      [{ foo: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getPsetChildren(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getPsetChildren(testparam),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getPsetChildren() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 'mock-uuid';
+    let testurl = `mock-host/webapi/v3/parameterset/children?uuid=${encodeURIComponent(testparam)}&maxDeep=1`;
+    testValidRequest(
+      serviceInstance.getPsetChildren(testparam, 1),
+      testurl,
+      'GET',
+      null,
+      [{ foo: 'mock-response' }],
+      undefined,
+      [{ foo: 'mock-response' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
