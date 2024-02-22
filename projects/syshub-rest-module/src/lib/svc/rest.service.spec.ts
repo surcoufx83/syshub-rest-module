@@ -1885,6 +1885,48 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getWorkflows() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/workflows`;
+    let testparams: SearchParams = {};
+    testValidAndBasicErrors(
+      () => serviceInstance.getWorkflows(testparams),
+      testurl,
+      'GET',
+      null,
+      [{ mock: 'mock-item' }],
+      undefined,
+      [{ mock: 'mock-item' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testparams = { limit: 100, offset: 10, orderby: 'id', search: 'foo' };
+    testurl = `mock-host/webapi/v3/workflows?limit=100&offset=10&orderby=id&search=foo`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getWorkflows(testparams),
+      testurl,
+      'GET',
+      null,
+      [{ mock: 'mock-item' }],
+      undefined,
+      [{ mock: 'mock-item' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testparams = {};
+    testurl = `mock-host/webapi/v3/workflows`;
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getWorkflows(testparams),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getWorkflows(testparams),
+      testurl
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
