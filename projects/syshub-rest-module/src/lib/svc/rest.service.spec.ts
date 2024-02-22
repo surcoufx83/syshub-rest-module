@@ -159,44 +159,7 @@ describe('RestService', () => {
     });
   }
 
-  /**
-   * @deprecated
-   */
-  function testValidAndBasicErrors(
-    fn: Function,
-    testurl: string,
-    expectRequestMethod: string,
-    expectedRequestBody: any,
-    sendResponse: any,
-    sendHeader: { [key: string]: string } | undefined,
-    expectedResponse: any,
-    status: HttpStatusCode,
-    statusText: string) {
-    testValidRequest(
-      fn(),
-      testurl,
-      expectRequestMethod,
-      expectedRequestBody,
-      sendResponse,
-      sendHeader,
-      expectedResponse,
-      status,
-      statusText,
-    );
-    testNetworkError(
-      fn(),
-      testurl
-    );
-    testStatusNotExpectedError(
-      fn(),
-      testurl
-    );
-  };
-
-  /**
-   * @deprecated
-   */
-  function testValidRequest(subject: any, expectUrl: string, expectRequestMethod: string, expectedRequestBody: any, sendResponse: any, sendHeader: { [key: string]: string } | undefined, expectedResponse: any, status: HttpStatusCode, statusText: string): void {
+  function testCustomValidation(subject: any, expectUrl: string, expectRequestMethod: string, expectedRequestBody: any, sendResponse: any, sendHeader: { [key: string]: string } | undefined, expectedResponse: any, status: HttpStatusCode, statusText: string): void {
     let payload: any;
     expect(subject).withContext('Valid request: Return type should be instanceOf Subject<Response>').toBeInstanceOf(Subject<Response>);
     subs.push((<Subject<Response>>subject).subscribe((subject_payload) => payload = subject_payload));
@@ -500,6 +463,8 @@ describe('RestService', () => {
       () => serviceInstance.getSyslogHostnames(),
       () => serviceInstance.getUserlogEntries(),
       () => serviceInstance.getUserlogEntry(1),
+      () => serviceInstance.getWorkflowExecution(''),
+      () => serviceInstance.getWorkflowExecutions(),
     ])
     flush();
   }));
@@ -556,11 +521,13 @@ describe('RestService', () => {
       [() => serviceInstance.getUserlogEntry(1), 'mock-host/webapi/v3/userlogs/1'],
       [() => serviceInstance.getUsers(), 'mock-host/webapi/v3/users'],
       [() => serviceInstance.getWorkflows({}), 'mock-host/webapi/v3/workflows'],
+      [() => serviceInstance.getWorkflowExecution(''), 'mock-host/webapi/v3/workflows/execute/'],
+      [() => serviceInstance.getWorkflowExecutions(), 'mock-host/webapi/v3/workflows/execute'],
     ])
     flush();
   }));
 
-  it('should handle handle all methods correct', fakeAsync(() => {
+  it('should handle all methods correct', fakeAsync(() => {
     const simpleCustomResponse = { content: { mock: 'foo' }, etag: undefined, header: {}, status: 200 };
     const simpleObjectWithChildrenArray = { children: [{ mock: 'foo1' }, { mock: 'foo2' }] };
     const simpleObjectWithStr = { mock: 'foo' };
@@ -986,6 +953,18 @@ describe('RestService', () => {
         sendResponse: simpleObjectWithChildrenArray.children,
         includeErrorTests: false
       },
+      {
+        fn: () => serviceInstance.getWorkflowExecution('mock-/uuid'),
+        url: `mock-host/webapi/v3/workflows/execute/${encodeURIComponent('mock-/uuid')}`, method: 'GET',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithStr
+      },
+      {
+        fn: () => serviceInstance.getWorkflowExecutions(),
+        url: `mock-host/webapi/v3/workflows/execute`, method: 'GET',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithChildrenArray.children
+      },
     ])
     flush();
   }));
@@ -994,7 +973,7 @@ describe('RestService', () => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testurl = `mock-host/webapi/v3/server/db/listAttributes/custdb?isNativeCall=false`;
     spyOn(console, 'error');
-    testValidRequest(
+    testCustomValidation(
       serviceInstance.getJndiDatabaseStructure('custdb', false),
       testurl,
       'GET',
