@@ -1691,6 +1691,48 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getSyslogEntries() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/syslogs`;
+    let testparams: SearchParams = {};
+    testValidAndBasicErrors(
+      () => serviceInstance.getSyslogEntries(testparams),
+      testurl,
+      'GET',
+      null,
+      { mock: 'mock-item' },
+      { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' },
+      { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' } },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testparams = { limit: 100, offset: 10, orderby: 'id', search: 'foo' };
+    testurl = `mock-host/webapi/v3/syslogs?limit=100&offset=10&orderby=id&search=foo`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getSyslogEntries(testparams),
+      testurl,
+      'GET',
+      null,
+      { mock: 'mock-item' },
+      { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '11', First: '10', Previous: '9' },
+      { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '11', First: '10', Previous: '9' } },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testparams = {};
+    testurl = `mock-host/webapi/v3/syslogs`;
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getSyslogEntries(testparams),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getSyslogEntries(testparams),
+      testurl
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
