@@ -1733,6 +1733,34 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getSyslogEntry() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 1024;
+    let testurl = `mock-host/webapi/v3/syslogs/${encodeURIComponent(testparam)}`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getSyslogEntry(testparam),
+      testurl,
+      'GET',
+      null,
+      { value: 'mock-response' },
+      undefined,
+      { value: 'mock-response' },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getSyslogEntry(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getSyslogEntry(testparam),
+      testurl
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
