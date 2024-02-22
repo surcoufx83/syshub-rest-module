@@ -1408,18 +1408,13 @@ export class RestService {
    * @returns An observable object which receives the raw http response of error.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
-  public head(endpoint: string): Observable<HttpResponse<any> | HttpErrorResponse> {
-    this.requireLoggedin();
-    let subject: Subject<HttpResponse<any> | HttpErrorResponse> = new Subject<HttpResponse<any> | HttpErrorResponse>();
-    this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`).subscribe({
-      next: (response) => {
-        subject.next(response);
-        subject.complete();
-      },
-      error: (e: HttpErrorResponse) => {
-        subject.next(e);
-        subject.complete();
-      }
+  public head(endpoint: string): Observable<Response> {
+    let subject: Subject<Response> = new Subject<Response>();
+    if (!this.requireLoggedin(subject))
+      return subject;
+    this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
+      next: (response) => this.handleResponse(subject, response),
+      error: (e: HttpErrorResponse) => this.handleError(subject, e)
     });
     return subject;
   }
@@ -1430,18 +1425,13 @@ export class RestService {
    * @returns An observable object which receives the raw http response of error.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
-  public headc(endpoint: string): Observable<HttpResponse<any> | HttpErrorResponse> {
-    this.requireLoggedin();
-    let subject: Subject<HttpResponse<any> | HttpErrorResponse> = new Subject<HttpResponse<any> | HttpErrorResponse>();
-    this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`).subscribe({
-      next: (response) => {
-        subject.next(response);
-        subject.complete();
-      },
-      error: (e: HttpErrorResponse) => {
-        subject.next(e);
-        subject.complete();
-      }
+  public headc(endpoint: string): Observable<Response> {
+    let subject: Subject<Response> = new Subject<Response>();
+    if (!this.requireLoggedin(subject))
+      return subject;
+    this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
+      next: (response) => this.handleResponse(subject, response),
+      error: (e: HttpErrorResponse) => this.handleError(subject, e)
     });
     return subject;
   }
@@ -1511,18 +1501,13 @@ export class RestService {
    * @returns An observable object which receives the raw http response of error.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
-  public options(endpoint: string): Observable<HttpResponse<any> | HttpErrorResponse> {
-    this.requireLoggedin();
-    let subject: Subject<HttpResponse<any> | HttpErrorResponse> = new Subject<HttpResponse<any> | HttpErrorResponse>();
-    this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`).subscribe({
-      next: (response) => {
-        subject.next(response);
-        subject.complete();
-      },
-      error: (e: HttpErrorResponse) => {
-        subject.next(e);
-        subject.complete();
-      }
+  public options(endpoint: string): Observable<Response> {
+    let subject: Subject<Response> = new Subject<Response>();
+    if (!this.requireLoggedin(subject))
+      return subject;
+    this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
+      next: (response) => this.handleResponse(subject, response),
+      error: (e: HttpErrorResponse) => this.handleError(subject, e)
     });
     return subject;
   }
@@ -1533,18 +1518,13 @@ export class RestService {
    * @returns An observable object which receives the raw http response of error.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
-  public optionsc(endpoint: string): Observable<HttpResponse<any> | HttpErrorResponse> {
-    this.requireLoggedin();
-    let subject: Subject<HttpResponse<any> | HttpErrorResponse> = new Subject<HttpResponse<any> | HttpErrorResponse>();
-    this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`).subscribe({
-      next: (response) => {
-        subject.next(response);
-        subject.complete();
-      },
-      error: (e: HttpErrorResponse) => {
-        subject.next(e);
-        subject.complete();
-      }
+  public optionsc(endpoint: string): Observable<Response> {
+    let subject: Subject<Response> = new Subject<Response>();
+    if (!this.requireLoggedin(subject))
+      return subject;
+    this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
+      next: (response) => this.handleResponse(subject, response),
+      error: (e: HttpErrorResponse) => this.handleError(subject, e)
     });
     return subject;
   }
