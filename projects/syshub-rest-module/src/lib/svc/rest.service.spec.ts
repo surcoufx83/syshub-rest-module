@@ -442,6 +442,7 @@ describe('RestService', () => {
       () => serviceInstance.getWorkflowModel(''),
       () => serviceInstance.getWorkflowReferences(''),
       () => serviceInstance.getWorkflowStartpoints(''),
+      () => serviceInstance.getWorkflowVersions(''),
     ])
     flush();
   }));
@@ -529,6 +530,7 @@ describe('RestService', () => {
       [() => serviceInstance.getWorkflowModel(''), 'mock-host/webapi/v3/workflow/'],
       [() => serviceInstance.getWorkflowReferences(''), 'mock-host/webapi/v3/workflows/checkReferences?uuid='],
       [() => serviceInstance.getWorkflowStartpoints(''), 'mock-host/webapi/v3/server/startPoint/list/'],
+      [() => serviceInstance.getWorkflowVersions(''), 'mock-host/webapi/v3/workflows//versions'],
     ])
     flush();
   }));
@@ -988,6 +990,12 @@ describe('RestService', () => {
         url: `mock-host/webapi/v3/server/startPoint/list/${encodeURIComponent('mock-/uuid')}`, method: 'GET',
         expectedRequestBody: null,
         sendResponse: ['mock-1', 'mock-2']
+      },
+      {
+        fn: () => serviceInstance.getWorkflowVersions('mock-/uuid'),
+        url: `mock-host/webapi/v3/workflows/${encodeURIComponent('mock-/uuid')}/versions`, method: 'GET',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithChildrenArray.children
       },
     ])
     flush();
