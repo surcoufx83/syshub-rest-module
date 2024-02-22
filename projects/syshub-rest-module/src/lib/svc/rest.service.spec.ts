@@ -92,11 +92,16 @@ describe('RestService', () => {
     subs = [];
   });
 
-  function testMissingScopeError(subject: Observable<any>, expectUrl: string): void {
+  function testMissingScopeError(fns: Function[]): void {
     let payload: any;
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    tick(10);
-    expect(payload).withContext('testMissingScopeError: Match returned content').toBeInstanceOf(MissingScopeError);
+    let sub: Subscription;
+    fns.forEach((fn) => {
+      sub = (<Observable<any>>fn()).subscribe((subject_payload) => payload = subject_payload);
+      tick(10);
+      expect(payload).withContext(`testMissingScopeError: ${fn}`).toBeInstanceOf(MissingScopeError);
+      sub?.unsubscribe();
+      payload = undefined;
+    });
   }
 
   function testNetworkError(subject: Observable<any>, expectUrl: string): void {
@@ -115,12 +120,18 @@ describe('RestService', () => {
     expect(payload).withContext('testStatusNotExpectedError: Match returned content').toBeInstanceOf(StatusNotExpectedError);
   }
 
-  function testUnauthorizedError(subject: Observable<any>, expectUrl: string): void {
+  function testUnauthorizedError(params: [Function, string][]): void {
     let payload: any;
-    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
-    let request = httpTestingController.expectOne(expectUrl, 'Url called');
-    request.flush(null, { status: HttpStatusCode.Unauthorized, statusText: 'Unauthorized' });
-    expect(payload).withContext('testUnauthorizedError: Match returned content').toBeInstanceOf(UnauthorizedError);
+    let sub: Subscription;
+    params.forEach((param) => {
+      sub = (<Observable<any>>param[0]()).subscribe((subject_payload) => payload = subject_payload);
+      let request = httpTestingController.expectOne(param[1], `testUnauthorizedError: ${param[0]}`)
+      request.flush(null, { status: HttpStatusCode.Unauthorized, statusText: 'Unauthorized' });
+      tick();
+      expect(payload).withContext(`testUnauthorizedError: ${param[0]}`).toBeInstanceOf(UnauthorizedError);
+      sub?.unsubscribe();
+      payload = undefined;
+    });
   }
 
   function testValidAndBasicErrors(fn: Function, testurl: string, expectRequestMethod: string, expectedRequestBody: any, sendResponse: any, sendHeader: { [key: string]: string } | undefined, expectedResponse: any, status: HttpStatusCode, statusText: string) {
@@ -393,6 +404,120 @@ describe('RestService', () => {
     expect(serviceInstance.getAccessToken()).withContext('Refers to access token from session').toEqual(mockLoggedInLocalStorage.accessToken);
   });
 
+  it('should handle missing private scope correct', fakeAsync(() => {
+    let serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError([
+      () => serviceInstance.createCategory(<SyshubCategory><any>{}),
+      () => serviceInstance.deleteCategory(''),
+      () => serviceInstance.deleteConfigItem(''),
+      () => serviceInstance.deletePSetItem(''),
+      () => serviceInstance.getCategories(),
+      () => serviceInstance.getCategory(''),
+      () => serviceInstance.getCategoryRefs(''),
+      () => serviceInstance.getClusterStatus(),
+      () => serviceInstance.getConfigChildren(''),
+      () => serviceInstance.getConfigItem(''),
+      () => serviceInstance.getConfigPath(''),
+      () => serviceInstance.getConnectedClients(),
+      () => serviceInstance.getCurrentUsersPermissions(),
+      () => serviceInstance.getCurrentUsersRoles(),
+      () => serviceInstance.getDevices(),
+      () => serviceInstance.getJndiDatabaseStructure(),
+      () => serviceInstance.getJndiConnectionNames(),
+      () => serviceInstance.getJobType(''),
+      () => serviceInstance.getJobTypes(),
+      () => serviceInstance.getNamedSystemsForConfigPath(''),
+      () => serviceInstance.getPermissions(),
+      () => serviceInstance.getPermissionSets(),
+      () => serviceInstance.getPsetChildren(''),
+      () => serviceInstance.getPsetItem(''),
+      () => serviceInstance.getPsetPath(''),
+      () => serviceInstance.getRoles(),
+      () => serviceInstance.getServerProperties(),
+      () => serviceInstance.getUsers(),
+      () => serviceInstance.getWorkflows({}),
+    ])
+    flush();
+  }));
+
+  it('should handle missing public scope correct', fakeAsync(() => {
+    let serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError([
+      () => serviceInstance.backupSyshub('', '', '', []),
+      () => serviceInstance.createJob(<SyshubJob><any>{}),
+      () => serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>{}),
+      () => serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>{}),
+      () => serviceInstance.deleteJob(1),
+      () => serviceInstance.getBackupMetadata(''),
+      () => serviceInstance.getCertStoreItems('keystore'),
+      () => serviceInstance.getCurrentUser(),
+      () => serviceInstance.getJob(1),
+      () => serviceInstance.getJobDir(),
+      () => serviceInstance.getJobs(),
+      () => serviceInstance.getServerInformation(),
+      () => serviceInstance.getSyslogEntries({}),
+      () => serviceInstance.getSyslogEntry(1),
+      () => serviceInstance.getSyslogHostnames(),
+      () => serviceInstance.getUserlogEntries(),
+      () => serviceInstance.getUserlogEntry(1),
+    ])
+    flush();
+  }));
+
+  it('should handle unauthorized correct', fakeAsync(() => {
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    let serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError([
+      [() => serviceInstance.backupSyshub('', '', '', []), 'mock-host/webapi/v3/backuprestore/backup?folder='],
+      [() => serviceInstance.createCategory(<SyshubCategory><any>{}), 'mock-host/webapi/v3/category/list'],
+      [() => serviceInstance.createJob(<SyshubJob><any>{}), 'mock-host/webapi/v3/jobs'],
+      [() => serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>{}), 'mock-host/webapi/v3/syslogs'],
+      [() => serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>{}), 'mock-host/webapi/v3/userlogs'],
+      [() => serviceInstance.deleteCategory(''), 'mock-host/webapi/v3/category/'],
+      [() => serviceInstance.deleteConfigItem(''), 'mock-host/webapi/v3/config/'],
+      [() => serviceInstance.deleteJob(1), 'mock-host/webapi/v3/jobs/1'],
+      [() => serviceInstance.deletePSetItem(''), 'mock-host/webapi/v3/parameterset/'],
+      [() => serviceInstance.getBackupMetadata(''), 'mock-host/webapi/v3/backuprestore/metadata?folder='],
+      [() => serviceInstance.getCategories(), 'mock-host/webapi/v3/category/list'],
+      [() => serviceInstance.getCategory(''), 'mock-host/webapi/v3/category/'],
+      [() => serviceInstance.getCategoryRefs(''), 'mock-host/webapi/v3/category/references/'],
+      [() => serviceInstance.getCertStoreItems('keystore'), 'mock-host/webapi/v3/certificate/list/keystore'],
+      [() => serviceInstance.getClusterStatus(), 'mock-host/webapi/v3/server/cluster'],
+      [() => serviceInstance.getConfigChildren(''), 'mock-host/webapi/v3/config/children?uuid=&maxDeep=0'],
+      [() => serviceInstance.getConfigItem(''), 'mock-host/webapi/v3/config/'],
+      [() => serviceInstance.getConfigPath(''), 'mock-host/webapi/v3/config/path/'],
+      [() => serviceInstance.getConnectedClients(), 'mock-host/webapi/v3/server/list/clientInformation?showAll=true'],
+      [() => serviceInstance.getCurrentUser(), 'mock-host/webapi/v3/currentUser'],
+      [() => serviceInstance.getCurrentUsersPermissions(), 'mock-host/webapi/v3/users/currentUser/permissions'],
+      [() => serviceInstance.getCurrentUsersRoles(), 'mock-host/webapi/v3/users/currentUser/roles'],
+      [() => serviceInstance.getDevices(), 'mock-host/webapi/v3/server/list/devices'],
+      [() => serviceInstance.getJndiConnectionNames(), 'mock-host/webapi/v3/server/db/listJNDI'],
+      [() => serviceInstance.getJndiDatabaseStructure(), 'mock-host/webapi/v3/server/db/listAttributes/System?isNativeCall=true'],
+      [() => serviceInstance.getJob(1), 'mock-host/webapi/v3/jobs/1'],
+      [() => serviceInstance.getJobDir(), 'mock-host/webapi/v3/server/jobsDir'],
+      [() => serviceInstance.getJobs(), 'mock-host/webapi/v3/jobs'],
+      [() => serviceInstance.getJobType(''), 'mock-host/webapi/v3/jobtype/'],
+      [() => serviceInstance.getJobTypes(), 'mock-host/webapi/v3/jobtype/list'],
+      [() => serviceInstance.getNamedSystemsForConfigPath(''), 'mock-host/webapi/v3/server/configuredSystems?elementPath='],
+      [() => serviceInstance.getPermissions(), 'mock-host/webapi/v3/permissions'],
+      [() => serviceInstance.getPermissionSets(), 'mock-host/webapi/v3/permissionsets'],
+      [() => serviceInstance.getPsetChildren(''), 'mock-host/webapi/v3/parameterset/children?uuid=&maxDeep=0'],
+      [() => serviceInstance.getPsetItem(''), 'mock-host/webapi/v3/parameterset/'],
+      [() => serviceInstance.getPsetPath(''), 'mock-host/webapi/v3/parameterset/path/'],
+      [() => serviceInstance.getRoles(), 'mock-host/webapi/v3/roles'],
+      [() => serviceInstance.getServerInformation(), 'mock-host/webapi/v3/server/list/information'],
+      [() => serviceInstance.getServerProperties(), 'mock-host/webapi/v3/server/properties'],
+      [() => serviceInstance.getSyslogEntries({}), 'mock-host/webapi/v3/syslogs'],
+      [() => serviceInstance.getSyslogEntry(1), 'mock-host/webapi/v3/syslogs/1'],
+      [() => serviceInstance.getSyslogHostnames(), 'mock-host/webapi/v3/syslogs/hostNames'],
+      [() => serviceInstance.getUserlogEntries(), 'mock-host/webapi/v3/userlogs'],
+      [() => serviceInstance.getUserlogEntry(1), 'mock-host/webapi/v3/userlogs/1'],
+      [() => serviceInstance.getUsers(), 'mock-host/webapi/v3/users'],
+      [() => serviceInstance.getWorkflows({}), 'mock-host/webapi/v3/workflows'],
+    ])
+    flush();
+  }));
+
   it('should process method backupSyshub() correct', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     let testparams: string[] = ['mock-backupName', 'backupDescription', 'mock-/folderpath'];
@@ -406,17 +531,6 @@ describe('RestService', () => {
       undefined,
       { name: 'mock-name', type: 'result', value: true },
       HttpStatusCode.Created, 'Created'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.backupSyshub(testparams[0], testparams[1], testparams[2], []),
-      testurl
     );
     flush();
   }));
@@ -441,17 +555,6 @@ describe('RestService', () => {
       [testparam],
       HttpStatusCode.Created, 'Created'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.createCategory(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.createCategory(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -468,17 +571,6 @@ describe('RestService', () => {
       { 'Location': 'mock-forward-header' },
       { content: testparam, header: { 'Location': 'mock-forward-header' } },
       HttpStatusCode.Created, 'Created'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.createJob(<SyshubJob><any>testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.createJob(<SyshubJob><any>testparam),
-      testurl
     );
     flush();
   }));
@@ -497,17 +589,6 @@ describe('RestService', () => {
       { content: testparam, header: { 'Location': 'mock-forward-header' } },
       HttpStatusCode.Created, 'Created'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.createSyslogEntry(<SyshubSyslogEntryToCreate><any>testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -524,17 +605,6 @@ describe('RestService', () => {
       { 'Location': 'mock-forward-header' },
       { content: testparam, header: { 'Location': 'mock-forward-header' } },
       HttpStatusCode.Created, 'Created'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.createUserlogEntry(<SyshubUserlogEntryToCreate><any>testparam),
-      testurl
     );
     flush();
   }));
@@ -582,17 +652,6 @@ describe('RestService', () => {
       testparam,
       HttpStatusCode.Ok, 'OK'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.deleteCategory(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.deleteCategory(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -609,17 +668,6 @@ describe('RestService', () => {
       undefined,
       testparam,
       HttpStatusCode.Ok, 'OK'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.deleteConfigItem(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.deleteConfigItem(testparam),
-      testurl
     );
     flush();
   }));
@@ -638,17 +686,6 @@ describe('RestService', () => {
       testparam,
       HttpStatusCode.Ok, 'OK'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.deletePSetItem(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.deletePSetItem(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -665,17 +702,6 @@ describe('RestService', () => {
       undefined,
       true,
       HttpStatusCode.NoContent, 'NoContent'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.deleteJob(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.deleteJob(testparam),
-      testurl
     );
     flush();
   }));
@@ -723,17 +749,6 @@ describe('RestService', () => {
       { foo: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getBackupMetadata(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getBackupMetadata(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -749,17 +764,6 @@ describe('RestService', () => {
       undefined,
       [{ foo: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getCategories(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getCategories(),
-      testurl
     );
     flush();
   }));
@@ -778,17 +782,6 @@ describe('RestService', () => {
       { foo: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getCategory(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getCategory(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -805,17 +798,6 @@ describe('RestService', () => {
       undefined,
       [{ foo: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getCategoryRefs(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getCategoryRefs(testparam),
-      testurl
     );
     flush();
   }));
@@ -851,17 +833,6 @@ describe('RestService', () => {
       [{ foo: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getCertStoreItems(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getCertStoreItems(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -877,17 +848,6 @@ describe('RestService', () => {
       undefined,
       { foo: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getClusterStatus(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getClusterStatus(),
-      testurl
     );
     flush();
   }));
@@ -905,17 +865,6 @@ describe('RestService', () => {
       undefined,
       [{ foo: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getConfigChildren(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getConfigChildren(testparam),
-      testurl
     );
     flush();
   }));
@@ -951,17 +900,6 @@ describe('RestService', () => {
       { foo: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getConfigItem(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getConfigItem(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -979,17 +917,6 @@ describe('RestService', () => {
       'mock-response',
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getConfigPath(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getConfigPath(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -1006,17 +933,6 @@ describe('RestService', () => {
       undefined,
       [{ value: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getConnectedClients(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getConnectedClients(),
-      testurl
     );
     flush();
   }));
@@ -1051,17 +967,6 @@ describe('RestService', () => {
       { value: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getCurrentUser(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getCurrentUser(),
-      testurl
-    );
     flush();
   }));
 
@@ -1077,17 +982,6 @@ describe('RestService', () => {
       undefined,
       ['mock-perm1', 'mock-perm2'],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getCurrentUsersPermissions(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getCurrentUsersPermissions(),
-      testurl
     );
     flush();
   }));
@@ -1105,17 +999,6 @@ describe('RestService', () => {
       ['mock-role1', 'mock-role2'],
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getCurrentUsersRoles(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getCurrentUsersRoles(),
-      testurl
-    );
     flush();
   }));
 
@@ -1131,17 +1014,6 @@ describe('RestService', () => {
       undefined,
       [{ value: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getDevices(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getDevices(),
-      testurl
     );
     flush();
   }));
@@ -1174,17 +1046,6 @@ describe('RestService', () => {
       undefined,
       SystemJndiDefResponse,
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getJndiDatabaseStructure(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getJndiDatabaseStructure(),
-      testurl
     );
     flush();
   }));
@@ -1236,17 +1097,6 @@ describe('RestService', () => {
       ['mock-jndi1', 'mock-jndi2'],
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getJndiConnectionNames(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getJndiConnectionNames(),
-      testurl
-    );
     flush();
   }));
 
@@ -1263,17 +1113,6 @@ describe('RestService', () => {
       { id: 1024, title: 'mock-title' },
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getJob(1024),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getJob(1024),
-      testurl
-    );
     flush();
   }));
 
@@ -1289,17 +1128,6 @@ describe('RestService', () => {
       undefined,
       'mock-dir',
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getJobDir(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getJobDir(),
-      testurl
     );
     flush();
   }));
@@ -1334,17 +1162,6 @@ describe('RestService', () => {
       { uuid: testparam, title: 'mock-title' },
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getJobType(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getJobType(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -1372,17 +1189,6 @@ describe('RestService', () => {
         { uuid: 'mock-uuid4', title: 'mock-title4', category: { uuid: 'mock-cat-uuid' } }
       ],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getJobTypes(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getJobTypes(),
-      testurl
     );
     flush();
   }));
@@ -1412,18 +1218,6 @@ describe('RestService', () => {
       { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '11', First: '10', Previous: '9' } },
       HttpStatusCode.Ok, 'Ok'
     );
-    testurl = `mock-host/webapi/v3/jobs`;
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getJobs(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getJobs(),
-      testurl
-    );
     flush();
   }));
 
@@ -1441,17 +1235,6 @@ describe('RestService', () => {
       ['test', 'foo'],
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getNamedSystemsForConfigPath(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getNamedSystemsForConfigPath(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -1467,17 +1250,6 @@ describe('RestService', () => {
       undefined,
       [{ mock: 'test-item' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getPermissions(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getPermissions(),
-      testurl
     );
     flush();
   }));
@@ -1495,17 +1267,6 @@ describe('RestService', () => {
       [{ mock: 'test-item' }],
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getPermissionSets(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getPermissionSets(),
-      testurl
-    );
     flush();
   }));
 
@@ -1522,17 +1283,6 @@ describe('RestService', () => {
       undefined,
       [{ foo: 'mock-response' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getPsetChildren(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getPsetChildren(testparam),
-      testurl
     );
     flush();
   }));
@@ -1568,17 +1318,6 @@ describe('RestService', () => {
       { foo: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getPsetItem(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getPsetItem(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -1596,17 +1335,6 @@ describe('RestService', () => {
       'mock-response',
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getPsetPath(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getPsetPath(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -1623,18 +1351,6 @@ describe('RestService', () => {
       [{ mock: 'test-item' }],
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getRoles(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getRoles(),
-      testurl
-    );
-    flush();
   }));
 
   it('should process method getServerInformation() correct', fakeAsync(() => {
@@ -1649,17 +1365,6 @@ describe('RestService', () => {
       undefined,
       { info1: 'foo', info2: true, info3: null },
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getServerInformation(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getServerInformation(),
-      testurl
     );
     flush();
   }));
@@ -1676,17 +1381,6 @@ describe('RestService', () => {
       undefined,
       { info1: 'foo', info2: true, info3: null },
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getServerProperties(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getServerProperties(),
-      testurl
     );
     flush();
   }));
@@ -1717,19 +1411,6 @@ describe('RestService', () => {
       { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '11', First: '10', Previous: '9' } },
       HttpStatusCode.Ok, 'Ok'
     );
-    testparams = {};
-    testurl = `mock-host/webapi/v3/syslogs`;
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getSyslogEntries(testparams),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getSyslogEntries(testparams),
-      testurl
-    );
     flush();
   }));
 
@@ -1747,17 +1428,6 @@ describe('RestService', () => {
       { value: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getSyslogEntry(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getSyslogEntry(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -1773,17 +1443,6 @@ describe('RestService', () => {
       undefined,
       ['mock-1', 'mock-2'],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getSyslogHostnames(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getSyslogHostnames(),
-      testurl
     );
     flush();
   }));
@@ -1814,19 +1473,6 @@ describe('RestService', () => {
       { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '11', First: '10', Previous: '9' } },
       HttpStatusCode.Ok, 'Ok'
     );
-    testparams = {};
-    testurl = `mock-host/webapi/v3/userlogs`;
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getUserlogEntries(testparams),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getUserlogEntries(testparams),
-      testurl
-    );
     flush();
   }));
 
@@ -1844,17 +1490,6 @@ describe('RestService', () => {
       { value: 'mock-response' },
       HttpStatusCode.Ok, 'Ok'
     );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getUserlogEntry(testparam),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getUserlogEntry(testparam),
-      testurl
-    );
     flush();
   }));
 
@@ -1870,17 +1505,6 @@ describe('RestService', () => {
       undefined,
       [{ mock: 'test-item' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getUsers(),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getUsers(),
-      testurl
     );
     flush();
   }));
@@ -1910,19 +1534,6 @@ describe('RestService', () => {
       undefined,
       [{ mock: 'mock-item' }],
       HttpStatusCode.Ok, 'Ok'
-    );
-    testparams = {};
-    testurl = `mock-host/webapi/v3/workflows`;
-    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
-    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
-    testUnauthorizedError(
-      serviceInstance.getWorkflows(testparams),
-      testurl
-    );
-    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
-    testMissingScopeError(
-      serviceInstance.getWorkflows(testparams),
-      testurl
     );
     flush();
   }));
