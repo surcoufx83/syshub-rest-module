@@ -325,6 +325,7 @@ describe('RestService', () => {
       () => serviceInstance.getWorkflowExecution(''),
       () => serviceInstance.getWorkflowExecutions(),
       () => serviceInstance.patchJob(1, <SyshubJobToPatch><any>{}),
+      () => serviceInstance.replaceJob(1, <SyshubJobToPatch><any>{}),
     ])
     flush();
   }));
@@ -400,6 +401,7 @@ describe('RestService', () => {
       [() => serviceInstance.postc('category', {}), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
       [() => serviceInstance.put('category', {}), 'mock-host/webapi/v3/category', { content: null, status: 401 }],
       [() => serviceInstance.putc('category', {}), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
+      [() => serviceInstance.replaceJob(1, {}), 'mock-host/webapi/v3/jobs/1'],
     ])
     flush();
   }));
@@ -967,6 +969,12 @@ describe('RestService', () => {
         sendResponse: simpleObjectWithStr,
         expectedResponse: simpleCustomResponse,
         includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.replaceJob(1, <SyshubJobToPatch><any>simpleObjectWithId),
+        url: `mock-host/webapi/v3/jobs/1`, method: 'PUT',
+        expectedRequestBody: simpleObjectWithId,
+        sendResponse: simpleObjectWithStr
       },
     ])
     flush();
