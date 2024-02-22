@@ -6,7 +6,7 @@ import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs';
 import { TestBed, fakeAsync, flush, tick } from '@angular/core/testing';
 import { StatusNotExpectedError, UnauthorizedError, NetworkError, MissingScopeError } from '../error';
 import { Token } from '../session';
-import { SyshubCategory, SyshubJob, SyshubSyslogEntryToCreate, SyshubUserlogEntryToCreate } from '../types';
+import { SyshubCategory, SyshubJob, SyshubJobToPatch, SyshubSyslogEntryToCreate, SyshubUserlogEntryToCreate } from '../types';
 
 describe('RestService', () => {
 
@@ -324,6 +324,7 @@ describe('RestService', () => {
       () => serviceInstance.getUserlogEntry(1),
       () => serviceInstance.getWorkflowExecution(''),
       () => serviceInstance.getWorkflowExecutions(),
+      () => serviceInstance.patchJob(1, <SyshubJobToPatch><any>{}),
     ])
     flush();
   }));
@@ -394,6 +395,7 @@ describe('RestService', () => {
       [() => serviceInstance.optionsc('category'), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
       [() => serviceInstance.patch('category', {}), 'mock-host/webapi/v3/category', { content: null, status: 401 }],
       [() => serviceInstance.patchc('category', {}), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
+      [() => serviceInstance.patchJob(1, {}), 'mock-host/webapi/v3/jobs/1'],
     ])
     flush();
   }));
@@ -923,6 +925,12 @@ describe('RestService', () => {
         sendResponse: simpleObjectWithStr,
         expectedResponse: simpleCustomResponse,
         includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.patchJob(1, <SyshubJobToPatch><any>simpleObjectWithId),
+        url: `mock-host/webapi/v3/jobs/1`, method: 'PATCH',
+        expectedRequestBody: simpleObjectWithId,
+        sendResponse: simpleObjectWithStr
       },
     ])
     flush();
