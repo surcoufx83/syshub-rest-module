@@ -1455,6 +1455,33 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getPermissions() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/permissions`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getPermissions(),
+      testurl,
+      'GET',
+      null,
+      [{ mock: 'test-item' }],
+      undefined,
+      [{ mock: 'test-item' }],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getPermissions(),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getPermissions(),
+      testurl
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
