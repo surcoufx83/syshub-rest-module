@@ -334,6 +334,7 @@ describe('RestService', () => {
       () => serviceInstance.getWorkflowExecutions(),
       () => serviceInstance.patchJob(1, <SyshubJobToPatch><any>{}),
       () => serviceInstance.replaceJob(1, <SyshubJobToPatch><any>{}),
+      () => serviceInstance.restoreSyshub('', []),
     ]);
     let tempsettings = <any>{ ...mockOauthSettingsPrivateOnly };
     tempsettings.throwErrors = true;
@@ -414,6 +415,7 @@ describe('RestService', () => {
       [() => serviceInstance.put('category', {}), 'mock-host/webapi/v3/category', { content: null, status: 401 }],
       [() => serviceInstance.putc('category', {}), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
       [() => serviceInstance.replaceJob(1, {}), 'mock-host/webapi/v3/jobs/1'],
+      [() => serviceInstance.restoreSyshub('', []), 'mock-host/webapi/v3/backuprestore/restore?folder='],
     ])
     flush();
   }));
@@ -987,6 +989,13 @@ describe('RestService', () => {
         url: `mock-host/webapi/v3/jobs/1`, method: 'PUT',
         expectedRequestBody: simpleObjectWithId,
         sendResponse: simpleObjectWithStr
+      },
+      {
+        fn: () => serviceInstance.restoreSyshub('mock-/folder', ['mock-opt1', 'mock-opt2']),
+        url: `mock-host/webapi/v3/backuprestore/restore?folder=${encodeURIComponent('mock-/folder')}`, method: 'POST',
+        expectedRequestBody: { BACKUPTYPES: ['mock-opt1', 'mock-opt2'] },
+        sendResponse: simpleSuccessResponse,
+        status: HttpStatusCode.Created, statusText: 'Created'
       },
     ])
     flush();
