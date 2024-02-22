@@ -390,6 +390,8 @@ describe('RestService', () => {
       [() => serviceInstance.getWorkflowVersions(''), 'mock-host/webapi/v3/workflows//versions'],
       [() => serviceInstance.head('category'), 'mock-host/webapi/v3/category', { content: null, status: 401 }],
       [() => serviceInstance.headc('category'), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
+      [() => serviceInstance.options('category'), 'mock-host/webapi/v3/category', { content: null, status: 401 }],
+      [() => serviceInstance.optionsc('category'), 'mock-host/webapi/custom/category', { content: null, status: 401 }],
     ])
     flush();
   }));
@@ -883,6 +885,22 @@ describe('RestService', () => {
       {
         fn: () => serviceInstance.headc('category'),
         url: `mock-host/webapi/custom/category`, method: 'HEAD',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithStr,
+        expectedResponse: simpleCustomResponse,
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.options('category'),
+        url: `mock-host/webapi/v3/category`, method: 'OPTIONS',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithStr,
+        expectedResponse: simpleCustomResponse,
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.optionsc('category'),
+        url: `mock-host/webapi/custom/category`, method: 'OPTIONS',
         expectedRequestBody: null,
         sendResponse: simpleObjectWithStr,
         expectedResponse: simpleCustomResponse,
