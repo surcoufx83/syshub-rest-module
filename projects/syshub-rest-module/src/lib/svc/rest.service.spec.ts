@@ -1427,6 +1427,34 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getNamedSystemsForConfigPath() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam: string = 'mock-/foo';
+    let testurl = `mock-host/webapi/v3/server/configuredSystems?elementPath=${encodeURIComponent(testparam)}`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getNamedSystemsForConfigPath(testparam),
+      testurl,
+      'GET',
+      null,
+      ['test', 'foo'],
+      undefined,
+      ['test', 'foo'],
+      HttpStatusCode.Ok, 'Ok'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getNamedSystemsForConfigPath(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPublicOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getNamedSystemsForConfigPath(testparam),
+      testurl
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
