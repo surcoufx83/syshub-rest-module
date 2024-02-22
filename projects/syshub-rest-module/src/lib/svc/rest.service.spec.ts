@@ -1788,6 +1788,76 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should process method getUserlogEntries() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testurl = `mock-host/webapi/v3/userlogs`;
+    let testparams: SearchParams = {};
+    testValidAndBasicErrors(
+      () => serviceInstance.getUserlogEntries(testparams),
+      testurl,
+      'GET',
+      null,
+      { mock: 'mock-item' },
+      { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' },
+      { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' } },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testparams = { limit: 100, offset: 10, orderby: 'id', search: 'foo' };
+    testurl = `mock-host/webapi/v3/userlogs?limit=100&offset=10&orderby=id&search=foo`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getUserlogEntries(testparams),
+      testurl,
+      'GET',
+      null,
+      { mock: 'mock-item' },
+      { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '11', First: '10', Previous: '9' },
+      { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '11', First: '10', Previous: '9' } },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    testparams = {};
+    testurl = `mock-host/webapi/v3/userlogs`;
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getUserlogEntries(testparams),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getUserlogEntries(testparams),
+      testurl
+    );
+    flush();
+  }));
+
+  it('should process method getUserlogEntry() correct', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    let testparam = 1024;
+    let testurl = `mock-host/webapi/v3/userlogs/${encodeURIComponent(testparam)}`;
+    testValidAndBasicErrors(
+      () => serviceInstance.getUserlogEntry(testparam),
+      testurl,
+      'GET',
+      null,
+      { value: 'mock-response' },
+      undefined,
+      { value: 'mock-response' },
+      HttpStatusCode.Ok, 'Ok'
+    );
+    localStorage.setItem('authmod-session', JSON.stringify(mockLoggedInLocalStorage));
+    serviceInstance = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    testUnauthorizedError(
+      serviceInstance.getUserlogEntry(testparam),
+      testurl
+    );
+    serviceInstance = new RestService(<Settings><any>mockOauthSettingsPrivateOnly, httpClient);
+    testMissingScopeError(
+      serviceInstance.getUserlogEntry(testparam),
+      testurl
+    );
+    flush();
+  }));
+
 });
 
 export const SystemJndiDef = [
