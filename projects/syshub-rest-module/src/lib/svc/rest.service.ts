@@ -69,7 +69,7 @@ export class RestService {
 
     // subscribe to changes in refresh is due and if true refresh session token
     this.session.refreshIsDue.subscribe((state) => {
-      if (state === true)
+      if (state === true && settings.useOAuth)
         this.refresh();
     });
 
@@ -1457,7 +1457,7 @@ export class RestService {
     const serv = this;
     let subject = new BehaviorSubject<boolean | null | HttpErrorResponse>(null);
     if (!this.settings.useOAuth) {
-      throw new Error('Method sendOAuthRefresh not allowed for basic authentication')
+      throw new Error('Method login not allowed for basic authentication')
     }
     let body: string = `grant_type=password&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&`
       + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
@@ -2082,9 +2082,6 @@ export class RestService {
    * @returns The subject from httpClient.post()
    */
   private sendOAuthRefresh(): Observable<any> {
-    if (!this.settings.useOAuth) {
-      throw new Error('Method sendOAuthRefresh not allowed for basic authentication')
-    }
     let body: string = `grant_type=refresh_token&refresh_token=${this.session.getRefreshToken()}&`
       + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
     return this.httpClient.post<any>(`${this.settings!.host}webauth/oauth/token`, body);
