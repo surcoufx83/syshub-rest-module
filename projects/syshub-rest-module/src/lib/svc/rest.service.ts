@@ -1884,7 +1884,7 @@ export class RestService {
       }
 
       response = <string[]>response;
-      if (response.length != 8 || (response[0] ?? '') != 'Memory statistics:') {
+      if (response.length != 8 || response[0] != 'Memory statistics:') {
         subject.next(new UnexpectedContentError(response));
         subject.complete();
         return;
