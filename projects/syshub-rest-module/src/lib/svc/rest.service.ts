@@ -1877,7 +1877,7 @@ export class RestService {
       return subject;
     this.runConsoleCommand('MEM').subscribe((response) => {
 
-      if (response instanceof StatusNotExpectedError) {
+      if (response instanceof Error) {
         subject.next(response);
         subject.complete();
         return;
@@ -1923,7 +1923,7 @@ export class RestService {
       return subject;
     this.runConsoleCommand('P').subscribe((response) => {
 
-      if (response instanceof StatusNotExpectedError) {
+      if (response instanceof Error) {
         subject.next(response);
         subject.complete();
         return;
