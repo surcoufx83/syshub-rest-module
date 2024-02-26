@@ -344,6 +344,7 @@ describe('RestService', () => {
       () => serviceInstance.runConsoleCommandHelp(),
       () => serviceInstance.runConsoleCommandMem(),
       () => serviceInstance.runConsoleCommandP(),
+      () => serviceInstance.runWorkflow(''),
     ]);
     let tempsettings = <any>{ ...mockOauthSettingsPrivateOnly };
     tempsettings.throwErrors = true;
@@ -427,6 +428,9 @@ describe('RestService', () => {
       [() => serviceInstance.restoreSyshub('', []), 'mock-host/webapi/v3/backuprestore/restore?folder='],
       [() => serviceInstance.runConsoleCommand('', []), 'mock-host/webapi/v3/consolecommands/execute/'],
       [() => serviceInstance.runConsoleCommandHelp(), 'mock-host/webapi/v3/consolecommands/execute/HELP'],
+      [() => serviceInstance.runConsoleCommandMem(), 'mock-host/webapi/v3/consolecommands/execute/MEM'],
+      [() => serviceInstance.runConsoleCommandP(), 'mock-host/webapi/v3/consolecommands/execute/P'],
+      [() => serviceInstance.runWorkflow(''), 'mock-host/webapi/v3/workflows/execute'],
     ])
     flush();
   }));
@@ -1226,6 +1230,25 @@ describe('RestService', () => {
           }
         ],
         status: HttpStatusCode.Accepted, statusText: 'Accepted',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runWorkflow('mock-uuid'),
+        url: `mock-host/webapi/v3/workflows/execute`, method: 'POST',
+        expectedRequestBody: { async: true, workflowUuid: 'mock-uuid' },
+        sendResponse: null,
+        sendHeader: { 'Location': 'mock-ref' },
+        expectedResponse: ['mock-ref', 201],
+        status: HttpStatusCode.Created, statusText: 'Created'
+      },
+      {
+        fn: () => serviceInstance.runWorkflow('mock-uuid', false, 1024),
+        url: `mock-host/webapi/v3/workflows/execute`, method: 'POST',
+        expectedRequestBody: { async: false, jobId: 1024, workflowUuid: 'mock-uuid' },
+        sendResponse: null,
+        sendHeader: { 'Location': 'mock-ref' },
+        expectedResponse: ['mock-ref', 201],
+        status: HttpStatusCode.Created, statusText: 'Created',
         includeErrorTests: false
       },
     ]);
