@@ -104,7 +104,12 @@ describe('RestService', () => {
       expect(request.request.body).withContext(`testPostMethod: Check request body for ${param.fn}`).toEqual(param.expectedRequestBody);
       request.flush(param.sendResponse, { status: param.status ?? HttpStatusCode.Ok, statusText: param.statusText ?? 'Ok', headers: param.sendHeader });
       tick(10);
-      expect(payload).withContext(`testPostMethod: Check processed payload for ${param.fn}`).toEqual(param.expectedResponse ?? param.sendResponse);
+      if (param.expectedResponse instanceof Error) {
+        expect(payload).withContext(`testPostMethod: Check processed payload type for ${param.fn}`).toBeInstanceOf(param.expectedResponse.constructor);
+        expect(payload).withContext(`testPostMethod: Check processed payload content for ${param.fn}`).toEqual(param.expectedResponse ?? param.sendResponse);
+      }
+      else
+        expect(payload).withContext(`testPostMethod: Check processed payload for ${param.fn}`).toEqual(param.expectedResponse ?? param.sendResponse);
       sub?.unsubscribe();
       payload = undefined;
       if (param.includeErrorTests !== false) {
@@ -337,6 +342,7 @@ describe('RestService', () => {
       () => serviceInstance.restoreSyshub('', []),
       () => serviceInstance.runConsoleCommand('', []),
       () => serviceInstance.runConsoleCommandHelp(),
+      () => serviceInstance.runConsoleCommandMem(),
     ]);
     let tempsettings = <any>{ ...mockOauthSettingsPrivateOnly };
     tempsettings.throwErrors = true;
@@ -1072,7 +1078,94 @@ describe('RestService', () => {
         status: HttpStatusCode.Accepted, statusText: 'Accepted',
         includeErrorTests: false
       },
-    ])
+      {
+        fn: () => serviceInstance.runConsoleCommandMem(),
+        url: `mock-host/webapi/v3/consolecommands/execute/MEM`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: [
+          'Memory statistics:',
+          '',
+          'Free :\t299.233.456',
+          'Max  :\t2.147.483.648',
+          'Total:\t536.870.912',
+          '',
+          'CPUs:\t8',
+          'Disk free[kb]:\t15.606.972'
+        ],
+        expectedResponse: {
+          'Cpus': 8,
+          'DiskFree': 15606972,
+          'DiskFreeUnit': 'kb',
+          'Free': 299233456,
+          'Max': 2147483648,
+          'Total': 536870912
+        },
+        status: HttpStatusCode.Accepted, statusText: 'Accepted'
+      },
+      {
+        fn: () => serviceInstance.runConsoleCommandMem(),
+        url: `mock-host/webapi/v3/consolecommands/execute/MEM`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: ['mock-1'],
+        expectedResponse: new UnexpectedContentError(['mock-1']),
+        status: HttpStatusCode.Accepted, statusText: 'Accepted',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runConsoleCommandMem(),
+        url: `mock-host/webapi/v3/consolecommands/execute/MEM`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: [
+          'statistics:',
+          '',
+          'Free :\t299.233.456',
+          'Max  :\t2.147.483.648',
+          'Total:\t536.870.912',
+          '',
+          'CPUs:\t8',
+          'Disk free[kb]:\t15.606.972'
+        ],
+        expectedResponse: new UnexpectedContentError([
+          'statistics:',
+          '',
+          'Free :\t299.233.456',
+          'Max  :\t2.147.483.648',
+          'Total:\t536.870.912',
+          '',
+          'CPUs:\t8',
+          'Disk free[kb]:\t15.606.972'
+        ]),
+        status: HttpStatusCode.Accepted, statusText: 'Accepted',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runConsoleCommandMem(),
+        url: `mock-host/webapi/v3/consolecommands/execute/MEM`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: [
+          'Memory statistics:',
+          '',
+          'Foo :\t299.233.456',
+          'Mock  :\t2.147.483.648',
+          'Total:\t536.870.912',
+          '',
+          'CPUs:\t8',
+          'Disk free[kb]:\t15.606.972'
+        ],
+        expectedResponse: new UnexpectedContentError([
+          'Memory statistics:',
+          '',
+          'Foo :\t299.233.456',
+          'Mock  :\t2.147.483.648',
+          'Total:\t536.870.912',
+          '',
+          'CPUs:\t8',
+          'Disk free[kb]:\t15.606.972'
+        ]),
+        status: HttpStatusCode.Accepted, statusText: 'Accepted',
+        includeErrorTests: false
+      },
+    ]);
     flush();
   }));
 
