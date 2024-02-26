@@ -348,6 +348,7 @@ describe('RestService', () => {
       () => serviceInstance.runConsoleCommandP(),
       () => serviceInstance.runWorkflow(''),
       () => serviceInstance.runWorkflowAlias('', {}),
+      () => serviceInstance.uploadFileToJob(1, 'ticket', new File([''], 'mock-file.pdf'), 'mock-file.pdf'),
     ]);
     let tempsettings = <any>{ ...mockOauthSettingsPrivateOnly };
     tempsettings.throwErrors = true;
@@ -436,6 +437,7 @@ describe('RestService', () => {
       [() => serviceInstance.runWorkflow(''), 'mock-host/webapi/v3/workflows/execute'],
       [() => serviceInstance.searchConfig({ name: 'mock' }), 'mock-host/webapi/v3/config?name=mock'],
       [() => serviceInstance.searchPSet({ name: 'mock' }), 'mock-host/webapi/v3/parameterset?name=mock'],
+      [() => serviceInstance.uploadFileToJob(1, 'ticket', new File([''], 'mock-file.pdf'), 'mock-file.pdf'), 'mock-host/webapi/v3/jobs/1/uploadFile?type=ticket'],
     ])
     flush();
   }));
@@ -1321,6 +1323,13 @@ describe('RestService', () => {
         sendResponse: simpleObjectWithChildrenArray.children,
         status: HttpStatusCode.Ok, statusText: 'Ok',
         includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.uploadFileToJob(1, 'ticket', new File([''], 'mock-file.pdf'), 'mock-file.pdf'),
+        url: `mock-host/webapi/v3/jobs/1/uploadFile?type=${encodeURIComponent('ticket')}`, method: 'POST',
+        expectedRequestBody: new FormData(),
+        sendResponse: true,
+        status: HttpStatusCode.Created, statusText: 'Created'
       },
     ]);
     flush();
