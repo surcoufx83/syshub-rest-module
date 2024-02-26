@@ -343,6 +343,7 @@ describe('RestService', () => {
       () => serviceInstance.runConsoleCommand('', []),
       () => serviceInstance.runConsoleCommandHelp(),
       () => serviceInstance.runConsoleCommandMem(),
+      () => serviceInstance.runConsoleCommandP(),
     ]);
     let tempsettings = <any>{ ...mockOauthSettingsPrivateOnly };
     tempsettings.throwErrors = true;
@@ -1162,6 +1163,68 @@ describe('RestService', () => {
           'CPUs:\t8',
           'Disk free[kb]:\t15.606.972'
         ]),
+        status: HttpStatusCode.Accepted, statusText: 'Accepted',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runConsoleCommandP(),
+        url: `mock-host/webapi/v3/consolecommands/execute/P`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: [
+          "Class;Jobprocessorname;Thread;Starttime;FirstInstance?;WorkflowUUID;CurrentElement;OS ProcID;CancelFlag;JobID;Host"
+        ],
+        expectedResponse: [],
+        status: HttpStatusCode.Accepted, statusText: 'Accepted'
+      },
+      {
+        fn: () => serviceInstance.runConsoleCommandP(),
+        url: `mock-host/webapi/v3/consolecommands/execute/P`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: [
+          "Class;Jobprocessorname;Thread;Starttime;FirstInstance?;WorkflowUUID;CurrentElement;OS ProcID;CancelFlag;JobID;Host",
+          "com.oce.workflow.runtime.LicenseControlledWorkflowProcessor@6d1b392e;Default;Thread[JOBPROCESSOR_Default,9,main];76100156104400;true;c0a8f28986bc16d88186bc96d87d0000;Sleep;-;UNKNOWN;63445;DESKTOP-QNE4EIJ"
+        ],
+        expectedResponse: [
+          {
+            "Class": "com.oce.workflow.runtime.LicenseControlledWorkflowProcessor@6d1b392e",
+            "Jobprocessorname": "Default",
+            "Thread": "Thread[JOBPROCESSOR_Default,9,main]",
+            "Starttime": 76100156104400,
+            "FirstInstance": true,
+            "WorkflowUUID": "c0a8f28986bc16d88186bc96d87d0000",
+            "CurrentElement": "Sleep",
+            "OSProcID": null,
+            "CancelFlag": "UNKNOWN",
+            "JobID": 63445,
+            "Host": "DESKTOP-QNE4EIJ"
+          }
+        ],
+        status: HttpStatusCode.Accepted, statusText: 'Accepted',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runConsoleCommandP(),
+        url: `mock-host/webapi/v3/consolecommands/execute/P`, method: 'POST',
+        expectedRequestBody: [],
+        sendResponse: [
+          "Class;Jobprocessorname;Thread;Starttime;FirstInstance?;WorkflowUUID;CurrentElement;OS ProcID;CancelFlag;JobID;Host",
+          "com.oce.workflow.runtime.LicenseControlledWorkflowProcessor@6d1b392e;Default;Thread[JOBPROCESSOR_Default,9,main];76100156104400;false;c0a8f28986bc16d88186bc96d87d0000;Sleep;1234;UNKNOWN;-;DESKTOP-QNE4EIJ"
+        ],
+        expectedResponse: [
+          {
+            "Class": "com.oce.workflow.runtime.LicenseControlledWorkflowProcessor@6d1b392e",
+            "Jobprocessorname": "Default",
+            "Thread": "Thread[JOBPROCESSOR_Default,9,main]",
+            "Starttime": 76100156104400,
+            "FirstInstance": false,
+            "WorkflowUUID": "c0a8f28986bc16d88186bc96d87d0000",
+            "CurrentElement": "Sleep",
+            "OSProcID": 1234,
+            "CancelFlag": "UNKNOWN",
+            "JobID": null,
+            "Host": "DESKTOP-QNE4EIJ"
+          }
+        ],
         status: HttpStatusCode.Accepted, statusText: 'Accepted',
         includeErrorTests: false
       },
