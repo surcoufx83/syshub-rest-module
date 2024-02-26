@@ -345,6 +345,7 @@ describe('RestService', () => {
       () => serviceInstance.runConsoleCommandMem(),
       () => serviceInstance.runConsoleCommandP(),
       () => serviceInstance.runWorkflow(''),
+      () => serviceInstance.runWorkflowAlias('', {}),
     ]);
     let tempsettings = <any>{ ...mockOauthSettingsPrivateOnly };
     tempsettings.throwErrors = true;
@@ -1249,6 +1250,42 @@ describe('RestService', () => {
         sendHeader: { 'Location': 'mock-ref' },
         expectedResponse: ['mock-ref', 201],
         status: HttpStatusCode.Created, statusText: 'Created',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runWorkflowAlias('mock-alias', { mock: 'foo' }),
+        url: `mock-host/webapi/v3/workflows/execute/alias/mock-alias`, method: 'POST',
+        expectedRequestBody: { mock: 'foo' },
+        sendResponse: { test: 'mock' },
+        expectedResponse: { content: { test: 'mock' }, etag: undefined, header: Object({}), status: 200 },
+        status: HttpStatusCode.Ok, statusText: 'Ok',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runWorkflowAlias('mock-alias', { mock: 'foo' }, 'DELETE'),
+        url: `mock-host/webapi/v3/workflows/execute/alias/mock-alias`, method: 'DELETE',
+        expectedRequestBody: null,
+        sendResponse: { test: 'mock' },
+        expectedResponse: { content: { test: 'mock' }, etag: undefined, header: Object({}), status: 200 },
+        status: HttpStatusCode.Ok, statusText: 'Ok',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runWorkflowAlias('mock-alias', { mock: 'foo' }, 'GET'),
+        url: `mock-host/webapi/v3/workflows/execute/alias/mock-alias`, method: 'GET',
+        expectedRequestBody: null,
+        sendResponse: { test: 'mock' },
+        expectedResponse: { content: { test: 'mock' }, etag: undefined, header: Object({}), status: 200 },
+        status: HttpStatusCode.Ok, statusText: 'Ok',
+        includeErrorTests: false
+      },
+      {
+        fn: () => serviceInstance.runWorkflowAlias('mock-alias', { mock: 'foo' }, 'PUT'),
+        url: `mock-host/webapi/v3/workflows/execute/alias/mock-alias`, method: 'PUT',
+        expectedRequestBody: { mock: 'foo' },
+        sendResponse: { test: 'mock' },
+        expectedResponse: { content: { test: 'mock' }, etag: undefined, header: Object({}), status: 200 },
+        status: HttpStatusCode.Ok, statusText: 'Ok',
         includeErrorTests: false
       },
     ]);
