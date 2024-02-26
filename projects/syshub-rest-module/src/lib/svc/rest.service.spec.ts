@@ -308,6 +308,7 @@ describe('RestService', () => {
       () => serviceInstance.getWorkflowStartpoints(''),
       () => serviceInstance.getWorkflowVersions(''),
       () => serviceInstance.searchConfig({ name: 'mock' }),
+      () => serviceInstance.searchPSet({ name: 'mock' }),
     ]);
     let tempsettings = <any>{ ...mockOauthSettingsPublicOnly };
     tempsettings.throwErrors = true;
@@ -434,6 +435,7 @@ describe('RestService', () => {
       [() => serviceInstance.runConsoleCommandP(), 'mock-host/webapi/v3/consolecommands/execute/P'],
       [() => serviceInstance.runWorkflow(''), 'mock-host/webapi/v3/workflows/execute'],
       [() => serviceInstance.searchConfig({ name: 'mock' }), 'mock-host/webapi/v3/config?name=mock'],
+      [() => serviceInstance.searchPSet({ name: 'mock' }), 'mock-host/webapi/v3/parameterset?name=mock'],
     ])
     flush();
   }));
@@ -1305,6 +1307,21 @@ describe('RestService', () => {
         status: HttpStatusCode.Ok, statusText: 'Ok',
         includeErrorTests: false
       },
+      {
+        fn: () => serviceInstance.searchPSet({ 'name': 'mock-/name' }),
+        url: `mock-host/webapi/v3/parameterset?name=${encodeURIComponent('mock-/name')}`, method: 'GET',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithChildrenArray.children,
+        status: HttpStatusCode.Ok, statusText: 'Ok'
+      },
+      {
+        fn: () => serviceInstance.searchPSet({ 'name': 'mock-/name', description: 'mock-desc', value: 'value' }),
+        url: `mock-host/webapi/v3/parameterset?description=${encodeURIComponent('mock-desc')}&name=${encodeURIComponent('mock-/name')}&value=${encodeURIComponent('value')}`, method: 'GET',
+        expectedRequestBody: null,
+        sendResponse: simpleObjectWithChildrenArray.children,
+        status: HttpStatusCode.Ok, statusText: 'Ok',
+        includeErrorTests: false
+      },
     ]);
     flush();
   }));
@@ -1364,10 +1381,17 @@ describe('RestService', () => {
     flush();
   }));
 
-  it('should throw console error in method searchConfig()', fakeAsync(() => {
+  it('should throw error in method searchConfig()', fakeAsync(() => {
     let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
     expect(() => serviceInstance.searchConfig({})).withContext('searchConfig() with empty search settins').toThrow(new ArgumentError('Search configuration must contain at least one of the properties not undefined.', 'search', {}));
     expect(() => serviceInstance.searchConfig({ name: '', description: '', value: '' })).withContext('searchConfig() with empty search settins').toThrow(new ArgumentError('Search configuration must contain at least one of the properties not empty.', 'search', { name: '', description: '', value: '' }));
+    flush();
+  }));
+
+  it('should throw error in method searchPSet()', fakeAsync(() => {
+    let serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    expect(() => serviceInstance.searchPSet({})).withContext('searchPSet() with empty search settins').toThrow(new ArgumentError('Search configuration must contain at least one of the properties not undefined.', 'search', {}));
+    expect(() => serviceInstance.searchPSet({ name: '', description: '', value: '' })).withContext('searchPSet() with empty search settins').toThrow(new ArgumentError('Search configuration must contain at least one of the properties not empty.', 'search', { name: '', description: '', value: '' }));
     flush();
   }));
 
