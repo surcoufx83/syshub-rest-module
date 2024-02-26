@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - Unreleased
+
+### Modified
+
+- **Breaking Change**: The type definitions for connection settings have been improved. Now, you can configure either basic authentication or OAuth, but not both simultaneously. This change will break existing code, necessitating modifications to settings objects.
+- Added automated tests for classes and services to enhance reliability and maintainability.
+
 ## [3.3.2] - 2024-02-15
 
 ### Added

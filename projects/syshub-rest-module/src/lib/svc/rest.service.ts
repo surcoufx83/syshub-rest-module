@@ -69,7 +69,7 @@ export class RestService {
 
     // subscribe to changes in refresh is due and if true refresh session token
     this.session.refreshIsDue.subscribe((state) => {
-      if (state === true)
+      if (state === true && settings.useOAuth)
         this.refresh();
     });
 
@@ -234,7 +234,7 @@ export class RestService {
 
   /**
    * Use this method to send a HTTP DELETE request to a **custom endpoint** of the sysHUB Server.
-   * @param endpoint The Rest API endpoint that follows after *webapi/v3/* and must not include this.
+   * @param endpoint The Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @returns An observable object to track the status and result of the Rest API call.
    * @throws NotLoggedinError If user is not loggedin with OAuth and throw errors has been enabled in settings.
    */
@@ -357,7 +357,7 @@ export class RestService {
 
   /**
    * Use this method to call a **custom endpoint** via HTTP GET.
-   * @param endpoint The custom Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The custom Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method
    * @returns An observable object to track the status and result of the Rest API call.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
@@ -1408,52 +1408,42 @@ export class RestService {
    * @returns An observable object which receives the raw http response of error.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
-  public head(endpoint: string): Observable<HttpResponse<any> | HttpErrorResponse> {
-    this.requireLoggedin();
-    let subject: Subject<HttpResponse<any> | HttpErrorResponse> = new Subject<HttpResponse<any> | HttpErrorResponse>();
-    this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`).subscribe({
-      next: (response) => {
-        subject.next(response);
-        subject.complete();
-      },
-      error: (e: HttpErrorResponse) => {
-        subject.next(e);
-        subject.complete();
-      }
+  public head(endpoint: string): Observable<Response> {
+    let subject: Subject<Response> = new Subject<Response>();
+    if (!this.requireLoggedin(subject))
+      return subject;
+    this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
+      next: (response) => this.handleResponse(subject, response),
+      error: (e: HttpErrorResponse) => this.handleError(subject, e)
     });
     return subject;
   }
 
   /**
    * Use this method to call a **custom endpoint** via HTTP HEAD.
-   * @param endpoint The custom Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The custom Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @returns An observable object which receives the raw http response of error.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
-  public headc(endpoint: string): Observable<HttpResponse<any> | HttpErrorResponse> {
-    this.requireLoggedin();
-    let subject: Subject<HttpResponse<any> | HttpErrorResponse> = new Subject<HttpResponse<any> | HttpErrorResponse>();
-    this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`).subscribe({
-      next: (response) => {
-        subject.next(response);
-        subject.complete();
-      },
-      error: (e: HttpErrorResponse) => {
-        subject.next(e);
-        subject.complete();
-      }
+  public headc(endpoint: string): Observable<Response> {
+    let subject: Subject<Response> = new Subject<Response>();
+    if (!this.requireLoggedin(subject))
+      return subject;
+    this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
+      next: (response) => this.handleResponse(subject, response),
+      error: (e: HttpErrorResponse) => this.handleError(subject, e)
     });
     return subject;
   }
 
   /** Returns whether the internal Rest API endpoints are allowed. */
   private get isInternalRestApiAllowed(): boolean {
-    return this.settings.basic.enabled || (this.settings.oauth.scope !== undefined && this.settings.oauth.scope.indexOf('private') > -1);
+    return this.settings.useBasicAuth || (this.settings.oauth!.scope !== undefined && this.settings.oauth!.scope.indexOf('private') > -1);
   }
 
   /** Returns whether the public Rest API endpoints are allowed. */
   private get isPublicRestApiAllowed(): boolean {
-    return this.settings.basic.enabled || (this.settings.oauth.scope !== undefined && this.settings.oauth.scope.indexOf('public') > -1);
+    return this.settings.useBasicAuth || (this.settings.oauth!.scope !== undefined && this.settings.oauth!.scope.indexOf('public') > -1);
   }
 
   /**
@@ -1466,8 +1456,11 @@ export class RestService {
   public login(username: string, password: string): BehaviorSubject<boolean | null | HttpErrorResponse> {
     const serv = this;
     let subject = new BehaviorSubject<boolean | null | HttpErrorResponse>(null);
+    if (!this.settings.useOAuth) {
+      throw new Error('Method login not allowed for basic authentication')
+    }
     let body: string = `grant_type=password&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&`
-      + `scope=${this.settings!.oauth.scope}&client_id=${this.settings!.oauth.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth.clientSecret!)}`;
+      + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
     this.httpClient.post(`${this.settings!.host}webauth/oauth/token`, body, { observe: 'response' }).subscribe({
       next: (response) => {
         if (response && response.body) {
@@ -1508,40 +1501,30 @@ export class RestService {
    * @returns An observable object which receives the raw http response of error.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
-  public options(endpoint: string): Observable<HttpResponse<any> | HttpErrorResponse> {
-    this.requireLoggedin();
-    let subject: Subject<HttpResponse<any> | HttpErrorResponse> = new Subject<HttpResponse<any> | HttpErrorResponse>();
-    this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`).subscribe({
-      next: (response) => {
-        subject.next(response);
-        subject.complete();
-      },
-      error: (e: HttpErrorResponse) => {
-        subject.next(e);
-        subject.complete();
-      }
+  public options(endpoint: string): Observable<Response> {
+    let subject: Subject<Response> = new Subject<Response>();
+    if (!this.requireLoggedin(subject))
+      return subject;
+    this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
+      next: (response) => this.handleResponse(subject, response),
+      error: (e: HttpErrorResponse) => this.handleError(subject, e)
     });
     return subject;
   }
 
   /**
    * Use this method to call a **custom endpoint** via HTTP OPTIONS.
-   * @param endpoint The custom Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The custom Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @returns An observable object which receives the raw http response of error.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
-  public optionsc(endpoint: string): Observable<HttpResponse<any> | HttpErrorResponse> {
-    this.requireLoggedin();
-    let subject: Subject<HttpResponse<any> | HttpErrorResponse> = new Subject<HttpResponse<any> | HttpErrorResponse>();
-    this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`).subscribe({
-      next: (response) => {
-        subject.next(response);
-        subject.complete();
-      },
-      error: (e: HttpErrorResponse) => {
-        subject.next(e);
-        subject.complete();
-      }
+  public optionsc(endpoint: string): Observable<Response> {
+    let subject: Subject<Response> = new Subject<Response>();
+    if (!this.requireLoggedin(subject))
+      return subject;
+    this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
+      next: (response) => this.handleResponse(subject, response),
+      error: (e: HttpErrorResponse) => this.handleError(subject, e)
     });
     return subject;
   }
@@ -1569,7 +1552,7 @@ export class RestService {
   /**
    * Use this method to send data via HTTP PATCH to a **custom endpoint** of the sysHUB Server. Make sure that the data matches the expected data 
    * of the sysHUB endpoint.
-   * @param endpoint The Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @param payload Any data that can be sent to the sysHUB Server.
    * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method
    * @returns An observable object to track the status and result of the Rest API call.
@@ -1634,7 +1617,7 @@ export class RestService {
    * Use this method to send data via HTTP POST to a **custom endpoint** of the sysHUB Server. Make sure that the data matches the expected data of 
    * the sysHUB endpoint.
    * To send files to the server make sure to use payload of type *FormData*.
-   * @param endpoint The Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @param payload Any data that can be sent to the sysHUB Server.
    * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method
    * @returns An observable object to track the status and result of the Rest API call.
@@ -1674,7 +1657,7 @@ export class RestService {
   /**
    * Use this method to send data via HTTP PUT to a **custom endpoint** the sysHUB Server. Make sure that the data matches the expected data of 
    * the sysHUB endpoint.
-   * @param endpoint The Rest API endpoint that follows after *custom/* and must not include this.
+   * @param endpoint The Rest API endpoint that follows after *webapi/custom/* and must not include this.
    * @param payload Any data that can be sent to the sysHUB Server.
    * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method
    * @returns An observable object to track the status and result of the Rest API call.
@@ -1852,12 +1835,11 @@ export class RestService {
       return subject;
     this.runConsoleCommand('HELP').subscribe((response) => {
 
-      if (response instanceof StatusNotExpectedError) {
+      if (response instanceof Error) {
         subject.next(response);
         subject.complete();
         return;
       }
-
       response = <string[]>response;
       if (response.length < 10 || (response[0] ?? '') != 'Available commands:') {
         subject.next(new UnexpectedContentError(response));
@@ -1895,14 +1877,14 @@ export class RestService {
       return subject;
     this.runConsoleCommand('MEM').subscribe((response) => {
 
-      if (response instanceof StatusNotExpectedError) {
+      if (response instanceof Error) {
         subject.next(response);
         subject.complete();
         return;
       }
 
       response = <string[]>response;
-      if (response.length != 8 || (response[0] ?? '') != 'Memory statistics:') {
+      if (response.length != 8 || response[0] != 'Memory statistics:') {
         subject.next(new UnexpectedContentError(response));
         subject.complete();
         return;
@@ -1941,7 +1923,7 @@ export class RestService {
       return subject;
     this.runConsoleCommand('P').subscribe((response) => {
 
-      if (response instanceof StatusNotExpectedError) {
+      if (response instanceof Error) {
         subject.next(response);
         subject.complete();
         return;
@@ -2101,7 +2083,7 @@ export class RestService {
    */
   private sendOAuthRefresh(): Observable<any> {
     let body: string = `grant_type=refresh_token&refresh_token=${this.session.getRefreshToken()}&`
-      + `scope=${this.settings!.oauth.scope}&client_id=${this.settings!.oauth.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth.clientSecret!)}`;
+      + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
     return this.httpClient.post<any>(`${this.settings!.host}webauth/oauth/token`, body);
   }
 

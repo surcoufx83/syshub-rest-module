@@ -1,89 +1,115 @@
+[![Node.js CI](https://github.com/surcoufx83/syshub-rest-module/actions/workflows/node.js.yml/badge.svg)](https://github.com/surcoufx83/syshub-rest-module/actions/workflows/node.js.yml)
+[![codecov](https://codecov.io/gh/surcoufx83/syshub-rest-module/graph/badge.svg?token=Y1R57GV3ZD)](https://codecov.io/gh/surcoufx83/syshub-rest-module)
+
 # Syshub Rest Module
 
-The **syshub-rest-module** provides an encapsulated module for communication between an Angular single-page application (SPA) and an NT-Ware uniFLOW sysHUB server. Communication takes place via the OAuth2-based rest interface provided by the sysHUB server, optionally via basic authentication.
+The **syshub-rest-module** is designed to facilitate communication between an Angular single-page application (SPA) and an NT-Ware uniFLOW sysHUB server. It leverages the sysHUB server's REST interface, which supports OAuth2 authentication and, optionally, basic authentication.
 
-The *RestService* included in this module provides generic methods for HTTP GET, POST, DELETE, PATCH and PUT operations as well as type-safe methods like `getCurrentUser()`. After a user logs in via OAuth, the module takes care of renewing the session token shortly before expiry.
+This module includes a *RestService* that provides generic methods for HTTP operations, including GET, POST, DELETE, PATCH, and PUT. It also offers type-safe methods, such as `getCurrentUser()`, to enhance usability. Once a user successfully logs in using OAuth, the module automatically handles the renewal of the session token shortly before its expiration.
 
-Follow the installation instructions below to integrate the module into an Angular app.
+To integrate the module into your Angular application, follow the installation instructions provided below.
 
 ## Install
 
-Run `npm i syshub-rest-module` in your Angular 17 project root to add this library as dependency. If your're using older Angular versions please refer to the following table.
+To add the **syshub-rest-module** to your project as a dependency, execute the following command in the root directory of your Angular 17 project:
+
+```sh
+npm i syshub-rest-module
+```
+
+For projects using older versions of Angular, please refer to the table below to find the appropriate version of the **syshub-rest-module** and the corresponding installation command.
 
 | Angular version | Syshub Rest Module version | install cmd                   |
 | :-------------- | :------------------------- | :---------------------------- |
-| 17.x            | 3.x                        | `npm i syshub-rest-module@^3` |
+| 17.x            | 4.x (or 3.x)               | `npm i syshub-rest-module@^4` |
 | 16.x            | 2.x                        | `npm i syshub-rest-module@^2` |
 
 ### Configuration
 
-After installing the module, create a configuration for the credentials, for example in your `environment.ts` file. If there is no `environment.ts` yet, see [this article](https://stackoverflow.com/a/74558518) on StackOverflow.
-Make sure that your configuration implements the `Env` interface, so that type checking prevents errors already during the development of the app. For each property within the `Env` type, type hints are implemented, please take note of them. For example, it is not intended to enable OAuth and Basic Auth in parallel (as described in the type hint). If both are activated anyway, an error will be thrown.
+After installing the module, you need to set up your credentials. This is typically done in your `environment.ts` file. If you don't have an `environment.ts` file yet, refer to [this StackOverflow article](https://stackoverflow.com/a/74558518) for guidance.
+
+Ensure that your configuration includes at least one element that implements either the `BasicRestSettings` or `OAuthRestSettings` type. These types specify the requirements for establishing a connection to a sysHUB Server.
+
+Type hints (comments) are provided for each type and property, serving as documentation. You can also find these comments in the [source code](https://github.com/surcoufx83/syshub-rest-module/blob/307f58f9ca9e696e37458eba658dc8a9deea9f79/projects/syshub-rest-module/src/lib/settings.ts#L154).
+
+
+#### Example configuration - Basic auth
+
+The following code is an example to setup your environment for basic authentication.
 
 ```ts
-import { Env, SyshubVersion } from 'syshub-rest-module';
+import { BasicRestSettings } from "syshub-rest-module";
 
-export const environment: Env = {
+export type MyEnvironment = {
+    syshub: BasicRestSettings
+}
+
+export const environment: MyEnvironment = {
     syshub: {
-        host: "http://localhost:8088/",
-        version: SyshubVersion.sysHUB_2023,
+        host: "/",
         basic: {
-            enabled: false,
-            username: "foo",
-            password: "foo!bar",
-            provider: "<syshubApiserverName>",
-        },
-        oauth: {
             enabled: true,
-            clientId: "<syshubAuthserverClientId>",
-            clientSecret: "<syshubAuthserverClientSecret>",
-            scope: "private+public"
-        }
+            username: "<basic username>",
+            password: "<basic password>",
+            provider: "<basic api provider>",
+        },
+        throwErrors: false
     }
 };
 ```
 
-#### Env Data Type Specification
+#### Example configuration - OAuth
 
-The `Env` data type in the `environment.ts` file forms the basic configuration unit for the *RestModule* and is intended to ensure that only valid properties are set. This detailed specification describes all properties and their permitted values and effects. The description is also stored within the module so that it is shown in the code editor.
+The following code is an example to setup your environment for OAuth2 authentication.
 
-`Env` is not mandatory. It contains the property `syshub` (`Type RestSettings`, see below), which must be used in the constructor of the `Settings` class. If `environment` is not declared as `Env`, it must be otherwise ensured that `syshub` conforms to the type `RestSettings`.
+```ts
+import { OAuthRestSettings } from "syshub-rest-module";
 
-#### Env property syshub - Data Type RestSettings Specification
+export type MyEnvironment = {
+    syshub: OAuthRestSettings
+}
 
-Root element for the `Settings` class constructor that is essential for configuring the *RestService*.
+export const environment: MyEnvironment = {
+    syshub: {
+        host: "/",
+        oauth: {
+            enabled: true,
+            clientId: "<oauth client id>",
+            clientSecret: "<oauth client secret>",
+            scope: "public"
+        },
+        throwErrors: false
+    }
+};
+```
 
-- `host`: **Required** (type string URL); URL to the sysHUB Webserver root, for example: `http://localhost:8088/`.
+#### Server Versions
 
-- `version`: Optional, **required for sysHUB 2021 server**; Pick one value from the enum:
-  - `SyshubVersion.sysHUB_2021`
-  - `SyshubVersion.sysHUB_2022`
-  - `SyshubVersion.sysHUB_2023`
-  - `SyshubVersion.DEFAULT` which is the same as `SyshubVersion.sysHUB_2023`
+The REST API of sysHUB has undergone significant changes from version 2021 to 2022, and minor updates from 2022 to 2023. It is now accessible via `/webapi/` instead of the previous `/cosmos-webapi/`. Consequently, this module introduces a version switch in its configuration to accommodate these changes. If this switch is not explicitly set, the module defaults to the latest version, which is currently 2023. To configure the module for use with sysHUB server versions 2021 or 2022, adjust the version setting as necessary.
 
-- `basic`: Optional, **required for basic authentication** (type object)
-  - `enabled`: Required (type boolean); `true` if basic auth is to be enabled, default `false`.
-  - `username`: Optional, **required for basic authentication** (type string)
-  - `password`: Optional, **required for basic authentication** (type string)
-  - `provider`: Optional, **required for basic authentication** (type string); The name of the API server provider from the sysHUB configuration.
+Below is a code example demonstrating how to configure the REST module for a sysHUB server version 2021:
 
-- `oauth`: Optional, **required for OAuth** (type object)
-  - `enabled`: Required (type boolean); `true` if OAuth is to be enabled, default `false`.
-  - `clientId`: Optional, **required for OAuth** (type string); The name of the Auth server client.
-  - `clientSecret`: Optional, **required for OAuth** (type string); The name of the Auth server client secret.
-  - `scope`: Optional (type string); The scope as defined in the sysHUB Auth server, replace `;` with `+`. Allowed values: `private`, `public`, `private+public`, or `public+private`. Default: `public`.
-  - `storeKey`: Optional (type string); The name that is used to store the credentials in the local browser cache. Default: `authmod-session`.
+```ts
+import { BasicRestSettings, SyshubVersion } from "syshub-rest-module";
 
-- `throwErrors`: Optional, default `false`. If enabled, instead of returning an error state, the service will throw an Error that can be catched.
+export type MyEnvironment = {
+    syshub: BasicRestSettings
+}
 
-- `options`: Optional (type object)
-  - `autoConnect`, Optional (type boolean), Not yet implemented.
-  - `autoLogoutOn401`, Optional (type boolean), If the sysHUB Rest API returns HTTP Status 401, this property causes the Rest Service to remove the user's session information from the browser cache. Default: `true`.
-  - `autoLogoutTimer`, Optional (type boolean), Not yet implemented.
-
-#### A short note on sysHUB 2021 server
-
-The Rest API has changed significantly from version 2021 to version 2022 of the server. The API is now available via `/webapi/` instead of the old `/cosmos-webapi/`, which is why this module contains a version switch in the configuration. If the switch is not set, the latest version, currently 2023, is always used. To use the module with an old 2021 server, change the version accordingly.
+export const environment: MyEnvironment = {
+    syshub: {
+        host: "/",
+        version: SyshubVersion.sysHUB_2021,
+        basic: {
+            enabled: true,
+            username: "<basic username>",
+            password: "<basic password>",
+            provider: "<basic api provider>",
+        },
+        throwErrors: false
+    }
+};
+```
 
 ### Link module in your app.module.ts
 
@@ -367,3 +393,9 @@ The following list is sorted by topic (like Swagger) and method name.
 | `getPermissionSets()`                                                                                       | `SyshubPermissionSet[]`                                                              | private | `GET`    | `/webapi/v3/permissionsets`                     |
 | `getRoles()`                                                                                                | `SyshubRole[]`                                                                       | private | `GET`    | `/webapi/v3/roles`                              |
 | `getWorkflowModel(uuid: string)`                                                                            | `SyshubWorkflowModel`                                                                | private | `GET`    | `/webapi/v3/workflow/...`                       |
+
+## Credits
+
+This README documentation is for the **syshub-rest-module**, which facilitates communication with the NT-Ware uniFLOW sysHUB server. While this module is independently developed, it is designed to work with sysHUB, a product of NT-Ware. For more information about NT-Ware and their innovative sysHUB solution, visit their official website:
+
+[NT-Ware uniFLOW sysHUB Official Website](https://www.syshub.global/)

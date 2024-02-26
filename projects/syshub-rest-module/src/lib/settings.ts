@@ -1,27 +1,28 @@
 
 export class Settings {
 
+    private isbasic: boolean = true;
     private valid$: boolean = false;
 
-    constructor(private settings: RestSettings) {
+    constructor(private settings: BasicRestSettings | OAuthRestSettings) {
         this.validate();
         this.valid$ = true;
     }
 
-    public get any(): RestSettings {
+    public get any(): BasicRestSettings | OAuthRestSettings {
         return this.settings;
     }
 
-    public get basic(): RestBasicSettings {
-        return this.settings.basic!;
+    public get basic(): BasicConnectionSettings | null {
+        return this.isbasic ? (<BasicRestSettings>this.settings).basic : null;
     }
 
     public get host(): string {
         return this.settings.host;
     }
 
-    public get oauth(): RestOAuthSettings {
-        return this.settings.oauth!;
+    public get oauth(): OAuthConnectionSettings | null {
+        return !this.isbasic ? (<OAuthRestSettings>this.settings).oauth : null;
     }
 
     public get options(): RestOptionsSettings {
@@ -30,6 +31,14 @@ export class Settings {
 
     public get throwErrors(): boolean {
         return this.settings.throwErrors!;
+    }
+
+    public get useBasicAuth(): boolean {
+        return this.isbasic;
+    }
+
+    public get useOAuth(): boolean {
+        return !this.isbasic;
     }
 
     public get valid(): boolean {
@@ -41,13 +50,19 @@ export class Settings {
     }
 
     private validate(): void {
-        // Check 1 - settings must not be undefined or null 
-        if (this.settings == undefined || this.settings == null)
+        // Check - settings must not be undefined or null 
+        if (!this.settings || this.settings == undefined || this.settings == null)
             throw new Error('E1 - Provided settings for REST API module are undefined or null.');
+
+        // Check that either basic or oauth exists
+        if (!Object.keys(this.settings).includes('basic') && !Object.keys(this.settings).includes('oauth'))
+            throw new Error('E2 - Missing \'basic\' or \'oauth\' property in REST API settings.');
+
+        this.isbasic = Object.keys(this.settings).includes('basic');
 
         // Check 2 - sysHUB host must never be empty or undefined
         if (this.settings.host == undefined || this.settings.host == null || this.settings.host == '')
-            throw new Error('E2 - Missing \'host\' property in REST API settings.');
+            throw new Error('E3 - Missing \'host\' property in REST API settings.');
 
         // Assign default server version
         if (this.settings.version == undefined)
@@ -61,57 +76,11 @@ export class Settings {
         if (this.settings.version == SyshubVersion.sysHUB_2021)
             this.settings.host = `${this.settings.host}cosmos-`;
 
-        // If basic property is missing, create it with default values
-        if (this.settings.basic == undefined || this.settings.basic == null)
-            this.settings.basic = { enabled: false };
+        if (this.isbasic)
+            this.validateBasicAuth(<BasicRestSettings>this.settings);
 
-        // Checks for enabled basic auth
-        if (this.settings.basic.enabled === true) {
-
-            // Check 3 - Username must be set and not empty
-            if (this.settings.basic.username == undefined || this.settings.basic.username == null || this.settings.basic.username == '')
-                throw new Error('E3 - Missing \'basic.username\' property in REST API settings.');
-
-            // Check 4 - Password must be set and not empty
-            if (this.settings.basic.password == undefined || this.settings.basic.password == null || this.settings.basic.password == '')
-                throw new Error('E4 - Missing \'basic.password\' property in REST API settings.');
-
-            // Check 5 - Provider must be set and not empty
-            if (this.settings.basic.provider == undefined || this.settings.basic.provider == null || this.settings.basic.provider == '')
-                throw new Error('E5 - Missing \'basic.provider\' property in REST API settings.');
-        }
-
-        // If oauth property is missing, create it with default values
-        if (this.settings.oauth == undefined || this.settings.oauth == null)
-            this.settings.oauth = { enabled: false };
-
-        // Checks for enabled oauth
-        if (this.settings.oauth.enabled) {
-
-            // Check 6 - clientId must be set and not empty
-            if (this.settings.oauth.clientId == undefined || this.settings.oauth.clientId == null || this.settings.oauth.clientId == '')
-                throw new Error('E6 - Missing \'oauth.clientId\' property in REST API settings.');
-
-            // Check 7 - clientSecret must be set and not empty
-            if (this.settings.oauth.clientSecret == undefined || this.settings.oauth.clientSecret == null || this.settings.oauth.clientSecret == '')
-                throw new Error('E7 - Missing \'oauth.clientSecret\' property in REST API settings.');
-
-            // If scope is not set use default public
-            if (this.settings.oauth.scope == undefined || this.settings.oauth.scope == null)
-                this.settings.oauth.scope = 'public';
-
-            // If storeKey is not set use default value
-            if (this.settings.oauth.storeKey == undefined || this.settings.oauth.storeKey == null)
-                this.settings.oauth.storeKey = 'authmod-session';
-        }
-
-        // Check 8 - basic and oauth must not de disabled at the same time
-        if (!this.settings.basic.enabled && !this.settings.oauth.enabled)
-            throw new Error('E8 - Both, basic and oauth are disabled in REST API settings. This is not supported, enable exactly one of both methods.');
-
-        // Check 9 - basic and oauth must not be enabled at the same time
-        if (this.settings.basic.enabled && this.settings.oauth.enabled)
-            throw new Error('E9 - Both, basic and oauth are enabled in REST API settings. This is not supported, disable one of both methods.');
+        else
+            this.validateOAuth(<OAuthRestSettings>this.settings);
 
         // Create default options if not set
         if (this.settings.options == undefined)
@@ -130,16 +99,57 @@ export class Settings {
             this.settings.throwErrors = false;
     }
 
+    private validateBasicAuth(settings: BasicRestSettings): void {
+
+        // Checks for enabled basic auth
+        if (settings.basic.enabled !== true)
+            throw new Error('E4 - \'basic.enabled\' property must be set as enabled in REST API settings.');
+
+        // Check - Username must be set and not empty
+        if (settings.basic.username == undefined || settings.basic.username == null || settings.basic.username == '')
+            throw new Error('E5 - Missing \'basic.username\' property in REST API settings.');
+
+        // Check - Password must be set and not empty
+        if (settings.basic.password == undefined || settings.basic.password == null || settings.basic.password == '')
+            throw new Error('E6 - Missing \'basic.password\' property in REST API settings.');
+
+        // Check - Provider must be set and not empty
+        if (settings.basic.provider == undefined || settings.basic.provider == null || settings.basic.provider == '')
+            throw new Error('E7 - Missing \'basic.provider\' property in REST API settings.');
+
+    }
+
+    private validateOAuth(settings: OAuthRestSettings): void {
+        // Checks for enabled oauth
+        if (settings.oauth.enabled !== true)
+            throw new Error('E8 - \'basic.enabled\' property must be set as enabled in REST API settings.');
+
+        // Check - clientId must be set and not empty
+        if (settings.oauth.clientId == undefined || settings.oauth.clientId == null || settings.oauth.clientId == '')
+            throw new Error('E9 - Missing \'oauth.clientId\' property in REST API settings.');
+
+        // Check - clientSecret must be set and not empty
+        if (settings.oauth.clientSecret == undefined || settings.oauth.clientSecret == null || settings.oauth.clientSecret == '')
+            throw new Error('E10 - Missing \'oauth.clientSecret\' property in REST API settings.');
+
+        // If scope is not set use default public
+        if (settings.oauth.scope == undefined || settings.oauth.scope == null)
+            settings.oauth.scope = 'public';
+
+        // If storeKey is not set use default value
+        if (settings.oauth.storeKey == undefined || settings.oauth.storeKey == null)
+            settings.oauth.storeKey = 'authmod-session';
+    }
+
 }
 
 /**
- * Configuration interface for the sysHUB Rest API Service.
- * Either *basic* or *oauth* must be set!
+ * Configuration interface for the sysHUB Rest API Service using basic authentication.
  */
-export type RestSettings = {
+export type BasicRestSettings = {
     /**
      * **host**: Required property; Must contain a valid url to the sysHUB server and may contain a custom port.
-     * Example: http://localhost:8088/
+     * Example: `/` or `http://localhost:8088/`
      */
     host: string;
 
@@ -150,14 +160,9 @@ export type RestSettings = {
     version?: SyshubVersion;
 
     /**
-     * **basic**: Optional property; Used for setting up the basic authentication.
+     * **basic**: Contains the connection parameters.
      */
-    basic?: RestBasicSettings;
-
-    /**
-     * **oauth**: Optional property; Used for setting up the OAuth authentication.
-     */
-    oauth?: RestOAuthSettings;
+    basic: BasicConnectionSettings;
 
     /**
      * **options**: Optional property; Used to configure more options for the Rest Service.
@@ -170,43 +175,75 @@ export type RestSettings = {
     throwErrors?: boolean;
 }
 
-export type RestBasicSettings = {
+export type BasicConnectionSettings = {
     /**
      * **basic.enabled**: Required property; Determines, whether basic authentication is enabled.
      */
-    enabled: boolean;
+    enabled: true;
 
     /**
-     * **basic.username**: Required if basic auth is enabled; Configures the user for basic authentication.
+     * **basic.username**: Configures the user for basic authentication.
      */
-    username?: string;
+    username: string;
 
     /**
-     * **basic.password**: Required if basic auth is enabled; Configures the password for basic authentication.
+     * **basic.password**: Configures the password for basic authentication.
      */
-    password?: string;
+    password: string;
 
     /**
-     * **basic.provider**: Required if basic auth is enabled; Configures the API Server provider for basic authentication.
+     * **basic.provider**: Configures the API Server provider for basic authentication.
      */
-    provider?: string;
+    provider: string;
+};
+
+/**
+ * Configuration interface for the sysHUB Rest API Service using OAuth authentication.
+ */
+export type OAuthRestSettings = {
+    /**
+     * **host**: Required property; Must contain a valid url to the sysHUB server and may contain a custom port.
+     * Example: `/` or `http://localhost:8088/`
+     */
+    host: string;
+
+    /**
+     * **version**: Optional property; Used to configure your sysHUB Server version to handle breaking changes of REST API.
+     * The default value is 2022 and newer.
+     */
+    version?: SyshubVersion;
+
+    /**
+     * **oauth**: Contains the connection parameters.
+     */
+    oauth: OAuthConnectionSettings;
+
+    /**
+     * **options**: Optional property; Used to configure more options for the Rest Service.
+     */
+    options?: RestOptionsSettings;
+
+    /**
+     * **throwErrors**: Optional property, default false; If true the connector will throw exceptions when user is not loggedin or wrong scope is configured. If false the call will be send to the Rest API and sysHUB will reply with an error.
+     */
+    throwErrors?: boolean;
 }
 
-export type RestOAuthSettings = {
+export type OAuthConnectionSettings = {
     /**
      * **oauth.enabled**: Required property; Determines, whether OAuth authentication is enabled.
      */
-    enabled: boolean;
+    enabled: true;
 
     /**
-     * **oauth.clientId**: Required if oauth is enabled; Configures the auth server Client Id.
+     * **oauth.clientId**: Configures the auth server Client Id.
      */
-    clientId?: string;
+    clientId: string;
 
     /**
-     * **oauth.clientSecret**: Required if oauth is enabled; Configures the auth server Client Secret.
+     * **oauth.clientSecret**: Configures the auth server Client Secret.
      */
-    clientSecret?: string;
+    clientSecret: string;
 
     /**
      * **oauth.scope**: Optional property; Configures the auth server scope and must match the settings in sysHub.
@@ -219,7 +256,7 @@ export type RestOAuthSettings = {
      * Default: *authmod-session*
      */
     storeKey?: string;
-}
+};
 
 export type RestOptionsSettings = {
     /**
