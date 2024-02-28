@@ -1682,32 +1682,30 @@ export class RestService {
     if (this.isRefreshing)
       return;
     this.isRefreshing = true;
-    const serv = this;
-    this.sendOAuthRefresh().subscribe(
-      (data: SyshubAuthResponse) => {
+    let body: string = `grant_type=refresh_token&refresh_token=${this.session.getRefreshToken()}&`
+      + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
+    this.httpClient.post<any>(`${this.settings!.host}webauth/oauth/token`, body).subscribe({
+      next: (response) => {
         let token: Token = {
-          accessToken: data.access_token,
-          expiresIn: data.expires_in,
+          accessToken: response.access_token,
+          expiresIn: response.expires_in,
           grantTime: new Date(),
           granted: true,
-          refreshToken: data.refresh_token,
+          refreshToken: response.refresh_token,
           username: this.session.getUsername(),
         };
-        serv.session.setToken(token);
+        this.session.setToken(token);
         setTimeout(() => {
           this.isRefreshing = false;
         }, 5000);
       },
-      (error: HttpErrorResponse) => {
-        /**
-         * sysHUB does send different HTTP Status codes if refresh token or session token is expired.
-         */
-        if ((error.status == 400 || error.status == 401 || error.status == 403) && this.settings.options.autoLogoutOn401) {
+      error: (e: HttpErrorResponse) => {
+        if ((e.status == 400 || e.status == 401 || e.status == 403) && this.settings.options.autoLogoutOn401) {
           this.logout();
           this.isRefreshing = false;
         }
       }
-    );
+    });
   }
 
   /**
@@ -2073,18 +2071,6 @@ export class RestService {
       }
     });
     return subject;
-  }
-
-  /**
-   * Private method that creates necessary body for the refresh.
-   * @param username Username
-   * @param password Password
-   * @returns The subject from httpClient.post()
-   */
-  private sendOAuthRefresh(): Observable<any> {
-    let body: string = `grant_type=refresh_token&refresh_token=${this.session.getRefreshToken()}&`
-      + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
-    return this.httpClient.post<any>(`${this.settings!.host}webauth/oauth/token`, body);
   }
 
   /**
