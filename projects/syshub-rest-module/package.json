@@ -16,8 +16,8 @@
     "url": "https://cdegitlab.westeurope.cloudapp.azure.com/sfuchs/syshub-rest-api-authmodule"
   },
   "peerDependencies": {
-    "@angular/common": "^17.2.1",
-    "@angular/core": "^17.2.1"
+    "@angular/common": "^17",
+    "@angular/core": "^17"
   },
   "dependencies": {
     "tslib": "^2.6.2"
