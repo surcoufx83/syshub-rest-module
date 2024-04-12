@@ -22,6 +22,9 @@ describe('RestService', () => {
       password: 'mock-password',
       provider: 'mock-provider',
     },
+    options: {
+      useEtags: true
+    },
   };
 
   let mockOauthSettings = {
@@ -35,6 +38,7 @@ describe('RestService', () => {
     },
     options: {
       autoLogoutOn401: true,
+      useEtags: true
     },
   };
 
@@ -49,6 +53,7 @@ describe('RestService', () => {
     },
     options: {
       autoLogoutOn401: true,
+      useEtags: true
     },
   };
 
@@ -63,6 +68,7 @@ describe('RestService', () => {
     },
     options: {
       autoLogoutOn401: true,
+      useEtags: true
     },
   };
 

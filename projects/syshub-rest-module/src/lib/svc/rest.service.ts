@@ -52,6 +52,9 @@ export class RestService {
   // reference to the session object
   private session!: Session;
 
+  // track sysHUB etags for cache handling
+  private etagCache: { [key: string]: string } = {};
+
   // track the current login state and make it public readable
   private isLoggedIn$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public isLoggedIn = this.isLoggedIn$.asObservable();
@@ -75,6 +78,15 @@ export class RestService {
 
     // subscribe to current token
     this.session.token.subscribe((token) => this.token$.next(token));
+
+    // load etag cache
+    if (this.settings.options.useEtags) {
+      let olddata: string | null = localStorage.getItem('authmod-etags');
+      if (olddata != null)
+        this.etagCache = JSON.parse(olddata);
+    }
+    else
+      localStorage.removeItem('authmod-etags');
   }
 
   /**
@@ -340,16 +352,34 @@ export class RestService {
   /**
    * Use this method to an endpoint via HTTP GET.
    * @param endpoint The Rest API endpoint that follows after *webapi/v3/* and must not include this.
-   * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method
+   * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @param etag Optional; Specify the Etag that returned a previous request to use sysHUB's internal cache mechanism. If the cache has not been changed, the HTTP status code is 304/Not changed and the content is null. Normally the cache is handled internally in this connection module.
    * @returns An observable object to track the status and result of the Rest API call.
    * @throws NotLoggedinError If user is not loggedin with OAuth and throw errors has been enabled in settings.
    */
-  public get(endpoint: string, acceptHeader?: string[]): Observable<Response> {
+  public get(endpoint: string, acceptHeader?: string[], clean: boolean = false, etag: string = ''): Observable<Response> {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.get<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response, acceptHeader),
+    let header: { [key: string]: string } = {};
+    if (this.settings.options.useEtags) {
+      // include etag-based request header if option is enabled
+      if (clean == false) {
+        if (etag != '')
+          header["If-None-Match"] = etag;
+        else if (this.etagCache[endpoint] != undefined)
+          header["If-None-Match"] = this.etagCache[endpoint];
+      }
+    }
+    this.httpClient.get<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response', headers: header }).subscribe({
+      next: (response) => {
+        if (this.settings.options.useEtags && response.headers.has('Etag') && response.headers.get('Etag') != null) {
+          this.etagCache[endpoint] = response.headers.get('Etag')!;
+          this.saveEtagCache();
+        }
+        this.handleResponse(subject, response, acceptHeader);
+      },
       error: (e: HttpErrorResponse) => this.handleError(subject, e)
     });
     return subject;
@@ -358,7 +388,7 @@ export class RestService {
   /**
    * Use this method to call a **custom endpoint** via HTTP GET.
    * @param endpoint The custom Rest API endpoint that follows after *webapi/custom/* and must not include this.
-   * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method
+   * @param acceptHeader An array of strings containing header names from the server response to add to the response of this method.
    * @returns An observable object to track the status and result of the Rest API call.
    * @throws NotLoggedinError If user is not loggedin with OAuth.
    */
@@ -383,15 +413,20 @@ export class RestService {
   /**
    * Returns meta information from a previously generated backup.
    * @param folderpath Backup folder that will be created inside sysHUB root folder.
-   * @returns Object of type *SyshubBackupMeta* if folder is found and meta information are available; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubBackupMeta* if folder is found and meta information are available or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getBackupMetadata(folderpath: string): Observable<SyshubBackupMeta | Error> {
-    let subject: Subject<SyshubBackupMeta | Error> = new Subject<SyshubBackupMeta | Error>();
+  public getBackupMetadata(folderpath: string, clean?: boolean): Observable<SyshubBackupMeta | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubBackupMeta | Error | HttpStatusCode.NotModified> = new Subject<SyshubBackupMeta | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`backuprestore/metadata?folder=${encodeURIComponent(folderpath)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`backuprestore/metadata?folder=${encodeURIComponent(folderpath)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubBackupMeta>response.content);
         subject.complete();
       } else {
@@ -404,15 +439,20 @@ export class RestService {
 
   /**
    * Get a list of all sysHUB categories.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
    * @returns Object of type *SyshubCategory[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getCategories(): Observable<SyshubCategory[] | Error> {
-    let subject: Subject<SyshubCategory[] | Error> = new Subject<SyshubCategory[] | Error>();
+  public getCategories(clean: boolean = false): Observable<SyshubCategory[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubCategory[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubCategory[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`category/list`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`category/list`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubCategory[]>response.content['children']);
         subject.complete();
       } else {
@@ -426,15 +466,20 @@ export class RestService {
   /**
    * Return one sysHUB category.
    * @param uuid The uuid of the category
-   * @returns Object of type *SyshubCategory*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubCategory* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getCategory(uuid: string): Observable<SyshubCategory | Error> {
-    let subject: Subject<SyshubCategory | Error> = new Subject<SyshubCategory | Error>();
+  public getCategory(uuid: string, clean: boolean = false): Observable<SyshubCategory | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubCategory | Error | HttpStatusCode.NotModified> = new Subject<SyshubCategory | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`category/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`category/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubCategory>response.content);
         subject.complete();
       } else {
@@ -448,15 +493,20 @@ export class RestService {
   /**
    * Return one sysHUB category.
    * @param uuid The uuid of the category
-   * @returns Object of type *SyshubCategoryReference[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubCategoryReference[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getCategoryRefs(uuid: string, type?: 'Decision' | 'Process' | 'Jobtype' | 'Workflow' | undefined): Observable<SyshubCategoryReference[] | Error> {
-    let subject: Subject<SyshubCategoryReference[] | Error> = new Subject<SyshubCategoryReference[] | Error>();
+  public getCategoryRefs(uuid: string, type?: 'Decision' | 'Process' | 'Jobtype' | 'Workflow' | undefined, clean: boolean = false): Observable<SyshubCategoryReference[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubCategoryReference[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubCategoryReference[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`category/references/${encodeURIComponent(uuid)}${type != undefined ? `?type=${encodeURIComponent(type)}` : ''}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`category/references/${encodeURIComponent(uuid)}${type != undefined ? `?type=${encodeURIComponent(type)}` : ''}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubCategoryReference[]>response.content);
         subject.complete();
       } else {
@@ -470,15 +520,20 @@ export class RestService {
   /**
    * Returns all items from key or trust store.
    * @param store Provide either keystore or truststore.
-   * @returns Object of type *SyshubCertStoreItem[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubCertStoreItem[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getCertStoreItems(store: 'keystore' | 'truststore'): Observable<SyshubCertStoreItem[] | Error> {
-    let subject: Subject<SyshubCertStoreItem[] | Error> = new Subject<SyshubCertStoreItem[] | Error>();
+  public getCertStoreItems(store: 'keystore' | 'truststore', clean: boolean = false): Observable<SyshubCertStoreItem[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubCertStoreItem[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubCertStoreItem[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`certificate/list/${store}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`certificate/list/${store}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubCertStoreItem[]>response.content);
         subject.complete();
       } else {
@@ -491,15 +546,20 @@ export class RestService {
 
   /**
    * Returns the sysHUB cluster status.
-   * @returns Object of type *SyshubResponseSimple*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubResponseSimple* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getClusterStatus(): Observable<SyshubResponseSimple | Error> {
-    let subject: Subject<SyshubResponseSimple | Error> = new Subject<SyshubResponseSimple | Error>();
+  public getClusterStatus(clean: boolean = false): Observable<SyshubResponseSimple | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubResponseSimple | Error | HttpStatusCode.NotModified> = new Subject<SyshubResponseSimple | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`server/cluster`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`server/cluster`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubResponseSimple>response.content);
         subject.complete();
       } else {
@@ -514,15 +574,20 @@ export class RestService {
    * Returns the children recursively.
    * @param uuid the uuid of the config item.
    * @param [maxDeep=0] If 0 all childs recursively are returned, otherwise the depth of returned items is determined by this value.
-   * @returns *SyshubConfigItem[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubConfigItem[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getConfigChildren(uuid: string, maxDeep: number = 0): Observable<SyshubConfigItem[] | Error> {
-    let subject: Subject<SyshubConfigItem[] | Error> = new Subject<SyshubConfigItem[] | Error>();
+  public getConfigChildren(uuid: string, maxDeep: number = 0, clean: boolean = false): Observable<SyshubConfigItem[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubConfigItem[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubConfigItem[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`config/children?uuid=${encodeURIComponent(uuid)}&maxDeep=${encodeURIComponent(maxDeep)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`config/children?uuid=${encodeURIComponent(uuid)}&maxDeep=${encodeURIComponent(maxDeep)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubConfigItem[]>response.content);
         subject.complete();
       } else {
@@ -536,15 +601,20 @@ export class RestService {
   /**
    * Returns one config item.
    * @param uuid the uuid of the config item.
-   * @returns *SyshubConfigItem*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubConfigItem* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getConfigItem(uuid: string): Observable<SyshubConfigItem | Error> {
-    let subject: Subject<SyshubConfigItem | Error> = new Subject<SyshubConfigItem | Error>();
+  public getConfigItem(uuid: string, clean: boolean = false): Observable<SyshubConfigItem | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubConfigItem | Error | HttpStatusCode.NotModified> = new Subject<SyshubConfigItem | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`config/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`config/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubConfigItem>response.content);
         subject.complete();
       } else {
@@ -558,15 +628,20 @@ export class RestService {
   /**
    * Returns the path inside the config tree of one config item.
    * @param uuid the uuid of the config item.
-   * @returns *string*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *string* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getConfigPath(uuid: string): Observable<string | Error> {
-    let subject: Subject<string | Error> = new Subject<string | Error>();
+  public getConfigPath(uuid: string, clean: boolean = false): Observable<string | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<string | Error | HttpStatusCode.NotModified> = new Subject<string | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`config/path/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`config/path/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next((<SyshubResponseSimple>response.content).value);
         subject.complete();
       } else {
@@ -580,15 +655,20 @@ export class RestService {
   /**
    * Returns a list of connected clients.
    * @param [all=true] If set to true all connections are shown, if not only client connections.
-   * @returns *SyshubClientConnection[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubClientConnection[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getConnectedClients(all: boolean = true): Observable<SyshubClientConnection[] | Error> {
-    let subject: Subject<SyshubClientConnection[] | Error> = new Subject<SyshubClientConnection[] | Error>();
+  public getConnectedClients(all: boolean = true, clean: boolean = false): Observable<SyshubClientConnection[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubClientConnection[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubClientConnection[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`server/list/clientInformation?showAll=${all}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`server/list/clientInformation?showAll=${all}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubClientConnection[]>response.content);
         subject.complete();
       } else {
@@ -601,15 +681,20 @@ export class RestService {
 
   /**
    * Returns the current user object from the sysHUB Rest API if loggedin.
-   * @returns Object of type *SyshubUserAccount*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubUserAccount* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getCurrentUser(): Observable<SyshubUserAccount | Error> {
-    let subject: Subject<SyshubUserAccount | Error> = new Subject<SyshubUserAccount | Error>();
+  public getCurrentUser(clean: boolean = false): Observable<SyshubUserAccount | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubUserAccount | Error | HttpStatusCode.NotModified> = new Subject<SyshubUserAccount | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get('currentUser').subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get('currentUser', undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubUserAccount>response.content);
         subject.complete();
       } else {
@@ -622,15 +707,20 @@ export class RestService {
 
   /**
    * Returns a list of permission names of the loggedin user.
-   * @returns *string[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *string[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getCurrentUsersPermissions(): Observable<string[] | Error> {
-    let subject: Subject<string[] | Error> = new Subject<string[] | Error>();
+  public getCurrentUsersPermissions(clean: boolean = false): Observable<string[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<string[] | Error | HttpStatusCode.NotModified> = new Subject<string[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get('users/currentUser/permissions').subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get('users/currentUser/permissions', undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<string[]>response.content);
         subject.complete();
       } else {
@@ -643,15 +733,20 @@ export class RestService {
 
   /**
    * Returns a list of role names of the loggedin user.
-   * @returns *string[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *string[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getCurrentUsersRoles(): Observable<string[] | Error> {
-    let subject: Subject<string[] | Error> = new Subject<string[] | Error>();
+  public getCurrentUsersRoles(clean: boolean = false): Observable<string[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<string[] | Error | HttpStatusCode.NotModified> = new Subject<string[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get('users/currentUser/roles').subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get('users/currentUser/roles', undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<string[]>response.content);
         subject.complete();
       } else {
@@ -665,15 +760,20 @@ export class RestService {
   /**
    * Returns the IPP devices.
    * @param [withImg=false] If true, device image is included as base64 encoded binary data.
-   * @returns *SyshubIppDevice[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubIppDevice[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getDevices(withImg: boolean = false): Observable<SyshubIppDevice[] | Error> {
-    let subject: Subject<SyshubIppDevice[] | Error> = new Subject<SyshubIppDevice[] | Error>();
+  public getDevices(withImg: boolean = false, clean: boolean = false): Observable<SyshubIppDevice[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubIppDevice[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubIppDevice[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`server/list/devices${withImg ? `?withImages=true` : ``}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`server/list/devices${withImg ? `?withImages=true` : ``}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubIppDevice[]>response.content);
         subject.complete();
       } else {
@@ -695,15 +795,20 @@ export class RestService {
    * Returns the table structure of a connected database.
    * @param jndi The JNDI connection name, eg. `System`.
    * @param [native=true] Switches the behavior of the Server. If false, it will return a cached structure for the System JNDI, although a different jndi name is provided.
-   * @returns Object of type *SyshubJndiTable[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubJndiTable[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getJndiDatabaseStructure(jndi: string = 'System', native: boolean = true): Observable<SyshubJndiTable[] | Error> {
-    let subject: Subject<SyshubJndiTable[] | Error> = new Subject<SyshubJndiTable[] | Error>();
+  public getJndiDatabaseStructure(jndi: string = 'System', native: boolean = true, clean: boolean = false): Observable<SyshubJndiTable[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubJndiTable[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubJndiTable[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`server/db/listAttributes/${encodeURIComponent(jndi)}?isNativeCall=${encodeURIComponent(native)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`server/db/listAttributes/${encodeURIComponent(jndi)}?isNativeCall=${encodeURIComponent(native)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         const data = <DbStructResponse[]>response.content;
         let struct: SyshubJndiTable[] = [];
 
@@ -741,15 +846,20 @@ export class RestService {
 
   /**
    * Returns a list of JNDI connection names.
-   * @returns *string[]* with the names of the connections; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *string[]* with the names of the connections or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getJndiConnectionNames(): Observable<string[] | Error> {
-    let subject: Subject<string[] | Error> = new Subject<string[] | Error>();
+  public getJndiConnectionNames(clean: boolean = false): Observable<string[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<string[] | Error | HttpStatusCode.NotModified> = new Subject<string[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get('server/db/listJNDI').subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get('server/db/listJNDI', undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<string[]>response.content);
         subject.complete();
       } else {
@@ -763,15 +873,20 @@ export class RestService {
   /**
    * Return one job object by its id from the server.
    * @param id The id of the job to retrieve.
-   * @returns Object of type *SyshubJob*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubJob* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getJob(id: number): Observable<SyshubJob | Error> {
-    let subject: Subject<SyshubJob | Error> = new Subject<SyshubJob | Error>();
+  public getJob(id: number, clean: boolean = false): Observable<SyshubJob | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubJob | Error | HttpStatusCode.NotModified> = new Subject<SyshubJob | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`jobs/${encodeURIComponent(id)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`jobs/${encodeURIComponent(id)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubJob>response.content);
         subject.complete();
       } else {
@@ -785,15 +900,20 @@ export class RestService {
   /**
    * Returs common job dir or if param `id` is provided the jobdir for a job identified by `id`.
    * @param id Optional: If provided, the server will return the dir for the given jobid.
-   * @returns string; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns string or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getJobDir(id?: number | undefined): Observable<string | Error> {
-    let subject: Subject<string | Error> = new Subject<string | Error>();
+  public getJobDir(id?: number | undefined, clean: boolean = false): Observable<string | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<string | Error | HttpStatusCode.NotModified> = new Subject<string | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`server/jobsDir${id ? `?jobId=${encodeURIComponent(id)}` : ''}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`server/jobsDir${id ? `?jobId=${encodeURIComponent(id)}` : ''}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next((<SyshubResponseSimple>response.content).value);
         subject.complete();
       } else {
@@ -807,15 +927,20 @@ export class RestService {
   /**
    * Returs the definition of one sysHUB job type.
    * @param uuid The uuid of the job type to retrieve.
-   * @returns *SyshubJobType* object; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubJobType* object or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getJobType(uuid: string): Observable<SyshubJobType | Error> {
-    let subject: Subject<SyshubJobType | Error> = new Subject<SyshubJobType | Error>();
+  public getJobType(uuid: string, clean: boolean = false): Observable<SyshubJobType | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubJobType | Error | HttpStatusCode.NotModified> = new Subject<SyshubJobType | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`jobtype/${uuid}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`jobtype/${uuid}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubJobType>response.content);
         subject.complete();
       } else {
@@ -828,15 +953,20 @@ export class RestService {
 
   /**
    * Returs the definition of all sysHUB job types.
-   * @returns *SyshubJobType[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubJobType[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getJobTypes(): Observable<SyshubJobType[] | Error> {
-    let subject: Subject<SyshubJobType[] | Error> = new Subject<SyshubJobType[] | Error>();
+  public getJobTypes(clean: boolean = false): Observable<SyshubJobType[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubJobType[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubJobType[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`jobtype/list`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`jobtype/list`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         let types: SyshubJobType[] = [...(<{ children: SyshubJobType[] }>response.content).children];
         /*
          In 2023.2 the category property is an object with uuid = null if no category is assigned.
@@ -861,16 +991,21 @@ export class RestService {
   /**
    * Returns a list of jobs from the server.
    * @param params An object to filter the list of jobs.
-   * @returns Object of type *JobsResponse* (which contains some headers and the content as *SyshubJob[]*); *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *JobsResponse* (which contains some headers and the content as *SyshubJob[]*) or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getJobs(params?: SearchParams): Observable<JobsResponse | Error> {
-    let subject: Subject<JobsResponse | Error> = new Subject<JobsResponse | Error>();
+  public getJobs(params?: SearchParams, clean: boolean = false): Observable<JobsResponse | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<JobsResponse | Error | HttpStatusCode.NotModified> = new Subject<JobsResponse | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
     let queryParams = this.createQueryParamsMap(params);
-    this.get(`jobs${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, ['Abs_count', 'Highest_Id', 'Last', 'Next', 'First', 'Previous']).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`jobs${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, ['Abs_count', 'Highest_Id', 'Last', 'Next', 'First', 'Previous'], clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<JobsResponse>{
           content: response.content,
           header: response.header,
@@ -887,15 +1022,20 @@ export class RestService {
   /**
    * Returns a list of named systems that have been configured for the given config path.
    * @param path The path from the config tree, e.g. `HotFolder`, `System`, `System/ApiServer`
-   * @returns Object of type *string[]*. If the path is not found, an empty array is returned. *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *string[]* or *304* if not modified. If the path is not found, an empty array is returned. *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getNamedSystemsForConfigPath(path: string): Observable<string[] | Error> {
-    let subject: Subject<string[] | Error> = new Subject<string[] | Error>();
+  public getNamedSystemsForConfigPath(path: string, clean: boolean = false): Observable<string[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<string[] | Error | HttpStatusCode.NotModified> = new Subject<string[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`server/configuredSystems?elementPath=${encodeURIComponent(path)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`server/configuredSystems?elementPath=${encodeURIComponent(path)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<string[]>response.content);
         subject.complete();
       } else {
@@ -908,15 +1048,20 @@ export class RestService {
 
   /**
    * Returns the permissions available on the server.
-   * @returns *SyshubPermission[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubPermission[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getPermissions(): Observable<SyshubPermission[] | Error> {
-    let subject: Subject<SyshubPermission[] | Error> = new Subject<SyshubPermission[] | Error>();
+  public getPermissions(clean: boolean = false): Observable<SyshubPermission[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubPermission[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubPermission[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get('permissions').subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get('permissions', undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubPermission[]>response.content);
         subject.complete();
       } else {
@@ -929,15 +1074,20 @@ export class RestService {
 
   /**
    * Returns the permissionsets available on the server.
-   * @returns *SyshubPermissionSet[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubPermissionSet[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getPermissionSets(): Observable<SyshubPermissionSet[] | Error> {
-    let subject: Subject<SyshubPermissionSet[] | Error> = new Subject<SyshubPermissionSet[] | Error>();
+  public getPermissionSets(clean: boolean = false): Observable<SyshubPermissionSet[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubPermissionSet[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubPermissionSet[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get('permissionsets').subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get('permissionsets', undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubPermissionSet[]>response.content);
         subject.complete();
       } else {
@@ -952,15 +1102,20 @@ export class RestService {
    * Returns the children recursively.
    * @param uuid the uuid of the parameterset item.
    * @param [maxDeep=0] If 0 all childs recursively are returned, otherwise the depth of returned items is determined by this value.
-   * @returns *SyshubPSetItem[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubPSetItem[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getPsetChildren(uuid: string, maxDeep: number = 0): Observable<SyshubPSetItem[] | Error> {
-    let subject: Subject<SyshubPSetItem[] | Error> = new Subject<SyshubPSetItem[] | Error>();
+  public getPsetChildren(uuid: string, maxDeep: number = 0, clean: boolean = false): Observable<SyshubPSetItem[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubPSetItem[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubPSetItem[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`parameterset/children?uuid=${encodeURIComponent(uuid)}&maxDeep=${encodeURIComponent(maxDeep)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`parameterset/children?uuid=${encodeURIComponent(uuid)}&maxDeep=${encodeURIComponent(maxDeep)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubPSetItem[]>response.content);
         subject.complete();
       } else {
@@ -974,15 +1129,20 @@ export class RestService {
   /**
    * Returns one parameterset item.
    * @param uuid the uuid of the parameterset item.
-   * @returns *SyshubPSetItem*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubPSetItem* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getPsetItem(uuid: string): Observable<SyshubPSetItem | Error> {
-    let subject: Subject<SyshubPSetItem | Error> = new Subject<SyshubPSetItem | Error>();
+  public getPsetItem(uuid: string, clean: boolean = false): Observable<SyshubPSetItem | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubPSetItem | Error | HttpStatusCode.NotModified> = new Subject<SyshubPSetItem | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`parameterset/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`parameterset/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubPSetItem>response.content);
         subject.complete();
       } else {
@@ -996,15 +1156,20 @@ export class RestService {
   /**
    * Returns the path inside the parameterset tree of one parameterset item.
    * @param uuid the uuid of the parameterset item.
-   * @returns *string*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *string* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getPsetPath(uuid: string): Observable<string | Error> {
-    let subject: Subject<string | Error> = new Subject<string | Error>();
+  public getPsetPath(uuid: string, clean: boolean = false): Observable<string | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<string | Error | HttpStatusCode.NotModified> = new Subject<string | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`parameterset/path/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`parameterset/path/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next((<SyshubResponseSimple>response.content).value);
         subject.complete();
       } else {
@@ -1017,15 +1182,20 @@ export class RestService {
 
   /**
    * Returns all roles available on the server.
-   * @returns *SyshubRole[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubRole[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getRoles(): Observable<SyshubRole[] | Error> {
-    let subject: Subject<SyshubRole[] | Error> = new Subject<SyshubRole[] | Error>();
+  public getRoles(clean: boolean = false): Observable<SyshubRole[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubRole[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubRole[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get('roles').subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get('roles', undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubRole[]>response.content);
         subject.complete();
       } else {
@@ -1038,15 +1208,20 @@ export class RestService {
 
   /**
    * Returns some sysHUB server information mainly used in the web client. The returned object contains the system and node name.
-   * @returns Object of type *SyshubServerInformation*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubServerInformation* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getServerInformation(): Observable<SyshubServerInformation | Error> {
-    let subject: Subject<SyshubServerInformation | Error> = new Subject<SyshubServerInformation | Error>();
+  public getServerInformation(clean: boolean = false): Observable<SyshubServerInformation | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubServerInformation | Error | HttpStatusCode.NotModified> = new Subject<SyshubServerInformation | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get('server/list/information').subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get('server/list/information', undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubServerInformation>response.content);
         subject.complete();
       } else {
@@ -1059,15 +1234,20 @@ export class RestService {
 
   /**
    * Returns some sysHUB server information mainly used in the web client. The returned object contains the system and node name.
-   * @returns Object of type *{ [key: string]: string }*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *{ [key: string]: string }* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getServerProperties(): Observable<{ [key: string]: string } | Error> {
-    let subject: Subject<{ [key: string]: string } | Error> = new Subject<{ [key: string]: string } | Error>();
+  public getServerProperties(clean: boolean = false): Observable<{ [key: string]: string } | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<{ [key: string]: string } | Error | HttpStatusCode.NotModified> = new Subject<{ [key: string]: string } | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get('server/properties').subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get('server/properties', undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<{ [key: string]: string }>response.content);
         subject.complete();
       } else {
@@ -1081,16 +1261,21 @@ export class RestService {
   /**
    * Returns an iterable list of syslog entries from the server.
    * @param params An object to filter the list of syslog entries.
-   * @returns Object of type *SyslogsResponse* (which contains some headers and the content as *SyshubSyslogEntry[]*); *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyslogsResponse* (which contains some headers and the content as *SyshubSyslogEntry[]*) or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getSyslogEntries(params: SearchParams): Observable<SyslogsResponse | Error> {
-    let subject: Subject<SyslogsResponse | Error> = new Subject<SyslogsResponse | Error>();
+  public getSyslogEntries(params: SearchParams, clean: boolean = false): Observable<SyslogsResponse | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyslogsResponse | Error | HttpStatusCode.NotModified> = new Subject<SyslogsResponse | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
     let queryParams = this.createQueryParamsMap(params);
-    this.get(`syslogs${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, ['Abs_count', 'Highest_Id', 'Last', 'Next', 'First', 'Previous']).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`syslogs${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, ['Abs_count', 'Highest_Id', 'Last', 'Next', 'First', 'Previous'], clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyslogsResponse>{
           content: response.content,
           header: response.header,
@@ -1107,15 +1292,20 @@ export class RestService {
   /**
    * Return one syslog entry object by its id from the server.
    * @param id The id of the entry to retrieve.
-   * @returns Object of type *SyshubSyslogEntry*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubSyslogEntry* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getSyslogEntry(id: number): Observable<SyshubSyslogEntry | Error> {
-    let subject: Subject<SyshubSyslogEntry | Error> = new Subject<SyshubSyslogEntry | Error>();
+  public getSyslogEntry(id: number, clean: boolean = false): Observable<SyshubSyslogEntry | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubSyslogEntry | Error | HttpStatusCode.NotModified> = new Subject<SyshubSyslogEntry | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`syslogs/${encodeURIComponent(id)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`syslogs/${encodeURIComponent(id)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubSyslogEntry>response.content);
         subject.complete();
       } else {
@@ -1128,15 +1318,20 @@ export class RestService {
 
   /**
    * Returns all the hostnames of the system log.
-   * @returns string[] containing the host names; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns string[] containing the host names or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getSyslogHostnames(): Observable<string[] | Error> {
-    let subject: Subject<string[] | Error> = new Subject<string[] | Error>();
+  public getSyslogHostnames(clean: boolean = false): Observable<string[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<string[] | Error | HttpStatusCode.NotModified> = new Subject<string[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`syslogs/hostNames`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`syslogs/hostNames`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         const responseItems = <SyslogHostnamesResponse>response.content;
         let resultItems: string[] = [];
         responseItems.result.forEach((value) => resultItems.push(value['col-1']));
@@ -1153,16 +1348,21 @@ export class RestService {
   /**
    * Returns an literable list of userlog entries from the server.
    * @param params An object to filter the list of userlog entries.
-   * @returns Object of type *UserlogsResponse* (which contains some headers and the content as *SyshubUserlogEntry[]*); *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *UserlogsResponse* (which contains some headers and the content as *SyshubUserlogEntry[]*) or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getUserlogEntries(params?: SearchParams): Observable<UserlogsResponse | Error> {
-    let subject: Subject<UserlogsResponse | Error> = new Subject<UserlogsResponse | Error>();
+  public getUserlogEntries(params?: SearchParams, clean: boolean = false): Observable<UserlogsResponse | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<UserlogsResponse | Error | HttpStatusCode.NotModified> = new Subject<UserlogsResponse | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
     let queryParams = this.createQueryParamsMap(params);
-    this.get(`userlogs${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, ['Abs_count', 'Highest_Id', 'Last', 'Next', 'First', 'Previous']).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`userlogs${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, ['Abs_count', 'Highest_Id', 'Last', 'Next', 'First', 'Previous'], clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<UserlogsResponse>{
           content: response.content,
           header: response.header,
@@ -1179,15 +1379,20 @@ export class RestService {
   /**
    * Return one syslog entry object by its id from the server.
    * @param id The id of the entry to retrieve.
-   * @returns Object of type *SyshubUserlogEntry*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubUserlogEntry* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getUserlogEntry(id: number): Observable<SyshubUserlogEntry | Error> {
-    let subject: Subject<SyshubUserlogEntry | Error> = new Subject<SyshubUserlogEntry | Error>();
+  public getUserlogEntry(id: number, clean: boolean = false): Observable<SyshubUserlogEntry | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubUserlogEntry | Error | HttpStatusCode.NotModified> = new Subject<SyshubUserlogEntry | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`userlogs/${encodeURIComponent(id)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`userlogs/${encodeURIComponent(id)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubUserlogEntry>response.content);
         subject.complete();
       } else {
@@ -1200,15 +1405,20 @@ export class RestService {
 
   /**
    * Returns a list of users from the server.
-   * @returns *SyshubUserAccount[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubUserAccount[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getUsers(): Observable<SyshubUserAccount[] | Error> {
-    let subject: Subject<SyshubUserAccount[] | Error> = new Subject<SyshubUserAccount[] | Error>();
+  public getUsers(clean: boolean = false): Observable<SyshubUserAccount[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubUserAccount[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubUserAccount[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`users`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`users`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubUserAccount[]>response.content);
         subject.complete();
       } else {
@@ -1222,16 +1432,21 @@ export class RestService {
   /**
    * Returns a filterable list of workflows from the server.
    * @param params An object to filter the list of workflows.
-   * @returns *SyshubWorkflow[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubWorkflow[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getWorkflows(params: SearchParams): Observable<SyshubWorkflow[] | Error> {
-    let subject: Subject<SyshubWorkflow[] | Error> = new Subject<SyshubWorkflow[] | Error>();
+  public getWorkflows(params: SearchParams, clean: boolean = false): Observable<SyshubWorkflow[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubWorkflow[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubWorkflow[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
     let queryParams = this.createQueryParamsMap(params);
-    this.get(`workflows${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`workflows${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubWorkflow[]>response.content);
         subject.complete();
       } else {
@@ -1244,15 +1459,20 @@ export class RestService {
 
   /**
    * Get one workflow execution resource for the given execution Uuid.
-   * @returns Object of type *SyshubWorkflowExecution*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubWorkflowExecution* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getWorkflowExecution(uuid: string): Observable<SyshubWorkflowExecution | Error> {
-    let subject: Subject<SyshubWorkflowExecution | Error> = new Subject<SyshubWorkflowExecution | Error>();
+  public getWorkflowExecution(uuid: string, clean: boolean = false): Observable<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified> = new Subject<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`workflows/execute/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`workflows/execute/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubWorkflowExecution>response.content);
         subject.complete();
       } else {
@@ -1265,15 +1485,20 @@ export class RestService {
 
   /**
    * Get all workflow execution resources for execution monitoring and result retrieval.
-   * @returns Object of type *SyshubWorkflowExecution[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns Object of type *SyshubWorkflowExecution[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getWorkflowExecutions(): Observable<SyshubWorkflowExecution[] | Error> {
-    let subject: Subject<SyshubWorkflowExecution[] | Error> = new Subject<SyshubWorkflowExecution[] | Error>();
+  public getWorkflowExecutions(clean: boolean = false): Observable<SyshubWorkflowExecution[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubWorkflowExecution[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubWorkflowExecution[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`workflows/execute`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`workflows/execute`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubWorkflowExecution[]>response.content);
         subject.complete();
       } else {
@@ -1288,15 +1513,20 @@ export class RestService {
    * Returns the workflow definition as used by the workflow designer.
    * This endpoint is not part of the official documentation so the functionality may break with any sysHUB update.
    * @param uuid Uuid of the workflow.
-   * @returns *SyshubWorkflowModel*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubWorkflowModel* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getWorkflowModel(uuid: string): Observable<SyshubWorkflowModel | Error> {
-    let subject: Subject<SyshubWorkflowModel | Error> = new Subject<SyshubWorkflowModel | Error>();
+  public getWorkflowModel(uuid: string, clean: boolean = false): Observable<SyshubWorkflowModel | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubWorkflowModel | Error | HttpStatusCode.NotModified> = new Subject<SyshubWorkflowModel | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`workflow/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`workflow/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubWorkflowModel>response.content);
         subject.complete();
       } else {
@@ -1310,15 +1540,20 @@ export class RestService {
   /**
    * Returns a list of references to the workflow.
    * @param uuid Uuid of the workflow.
-   * @returns *SyshubWorkflowReference[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubWorkflowReference[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getWorkflowReferences(uuid: string): Observable<SyshubWorkflowReference[] | Error> {
-    let subject: Subject<SyshubWorkflowReference[] | Error> = new Subject<SyshubWorkflowReference[] | Error>();
+  public getWorkflowReferences(uuid: string, clean: boolean = false): Observable<SyshubWorkflowReference[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubWorkflowReference[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubWorkflowReference[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`workflows/checkReferences?uuid=${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`workflows/checkReferences?uuid=${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubWorkflowReference[]>response.content);
         subject.complete();
       } else {
@@ -1332,15 +1567,20 @@ export class RestService {
   /**
    * Returns a list of start points of a workflow.
    * @param uuid Uuid of the workflow.
-   * @returns *string[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *string[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getWorkflowStartpoints(uuid: string): Observable<string[] | Error> {
-    let subject: Subject<string[] | Error> = new Subject<string[] | Error>();
+  public getWorkflowStartpoints(uuid: string, clean: boolean = false): Observable<string[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<string[] | Error | HttpStatusCode.NotModified> = new Subject<string[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`server/startPoint/list/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`server/startPoint/list/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<string[]>response.content);
         subject.complete();
       } else {
@@ -1354,15 +1594,20 @@ export class RestService {
   /**
    * Returns a list of a workflows versions from the server.
    * @param uuid Uuid of the workflow.
-   * @returns *SyshubWorkflowVersion[]*; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
+   * @param clean Optional; If not set (or false), the cache can be used and return status 304 if nothing has changed. If true, the HTTP request will always ignore the cache.
+   * @returns *SyshubWorkflowVersion[]* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to private Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getWorkflowVersions(uuid: string): Observable<SyshubWorkflowVersion[] | Error> {
-    let subject: Subject<SyshubWorkflowVersion[] | Error> = new Subject<SyshubWorkflowVersion[] | Error>();
+  public getWorkflowVersions(uuid: string, clean: boolean = false): Observable<SyshubWorkflowVersion[] | Error | HttpStatusCode.NotModified> {
+    let subject: Subject<SyshubWorkflowVersion[] | Error | HttpStatusCode.NotModified> = new Subject<SyshubWorkflowVersion[] | Error | HttpStatusCode.NotModified>();
     if (!this.requirePrivateScope(subject))
       return subject;
-    this.get(`workflows/${encodeURIComponent(uuid)}/versions`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+    this.get(`workflows/${encodeURIComponent(uuid)}/versions`, undefined, clean).subscribe((response) => {
+      if (response.status == HttpStatusCode.NotModified) {
+        subject.next(HttpStatusCode.NotModified);
+        subject.complete();
+      }
+      else if (response.status == HttpStatusCode.Ok) {
         subject.next(<SyshubWorkflowVersion[]>response.content);
         subject.complete();
       } else {
@@ -1493,6 +1738,7 @@ export class RestService {
    */
   public logout(): void {
     this.session.clearToken();
+    localStorage.removeItem('authmod-etags');
   }
 
   /**
@@ -2003,6 +2249,10 @@ export class RestService {
       case 'PUT':
         return this.put(`workflows/execute/alias/${alias}`, payload);
     }
+  }
+
+  private saveEtagCache(): void {
+    localStorage.setItem('authmod-etags', JSON.stringify(this.etagCache));
   }
 
   /**

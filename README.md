@@ -21,7 +21,7 @@ For projects using older versions of Angular, please refer to the table below to
 
 | Angular version | Syshub Rest Module version | install cmd                   |
 | :-------------- | :------------------------- | :---------------------------- |
-| 17.x            | 4.x (or 3.x)               | `npm i syshub-rest-module@^4` |
+| 17.x            | 5.x (4.x to 3.x)           | `npm i syshub-rest-module@^5` |
 | 16.x            | 2.x                        | `npm i syshub-rest-module@^2` |
 
 ### Configuration
@@ -236,7 +236,7 @@ Calling Rest API endpoints is quite simple with the *RestService*. Call one of t
 #### HTTP GET
 
 ```ts
-this.restService.get('currentUser').subscribe((response) => {
+this.restService.get('currentUser', undefined, true).subscribe((response) => {
   if (response.status == HttpStatusCode.Ok) {
     // Ok response
     /**
@@ -316,6 +316,30 @@ Consider the `getCurrentUser()` method, which specifically targets the `currentU
 this.restService.getCurrentUser().subscribe((response) => {
   if (response instanceof Error) {
     // Handle failed response
+  } else if (response === HttpStatusCode.NotModified) {
+    // Entity not changed
+  } else {
+    // Handle successful response
+    // Guaranteed to be a SyshubUserAccount typed object, not an Error.
+  }
+});
+```
+
+### Using sysHUB Server cache
+
+From version 5 of this module, the Etag mechanism, which is also available in the sysHUB Rest API, is taken into account. Basically, this works in such a way that the server delivers an Etag (a hash value) with every response. If the same resource is requested again and the hash value is supplied, the server checks whether the resource has changed. If so, it delivers the resource plus the new Etag as normal. If not, the server returns the HTTP status code 304/Not modified. 
+
+The Rest module has now also implemented the corresponding functionality and enables the use of the Etag feature for all GET requests that do not concern custom endpoints. The feature is activated by default and means that in future, in addition to the response from the server or an error, the code 304 can also be returned to the calling function. In this case, the requested resource has not changed and there is no new data.
+
+In order to skip the etag check and force the server to deliver the resource again, set the param `clean` to `true`:
+
+```ts
+this.restService.getCurrentUser(true).subscribe((response) => {
+  if (response instanceof Error) {
+    // Handle failed response
+  } else if (response === HttpStatusCode.NotModified) {
+    // Entity not changed
+    // Will not happen due to param clean=true
   } else {
     // Handle successful response
     // Guaranteed to be a SyshubUserAccount typed object, not an Error.

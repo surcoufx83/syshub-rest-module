@@ -84,7 +84,7 @@ export class Settings {
 
         // Create default options if not set
         if (this.settings.options == undefined)
-            this.settings.options = { autoConnect: true, autoLogoutOn401: true };
+            this.settings.options = { autoConnect: true, autoLogoutOn401: true, useEtags: true };
 
         // Create default options.autoConnect if not set
         if (this.settings.options.autoConnect == undefined)
@@ -93,6 +93,10 @@ export class Settings {
         // Create default options.autoLogoutOn401 if not set
         if (this.settings.options.autoLogoutOn401 == undefined)
             this.settings.options.autoLogoutOn401 = true;
+
+        // Default options.useEtags = true if not set
+        if (this.settings.options.useEtags == undefined)
+            this.settings.options.useEtags = true;
 
         // Default throwErrors = false if not set
         if (this.settings.throwErrors == undefined)
@@ -274,6 +278,13 @@ export type RestOptionsSettings = {
      * **options.autoLogoutTimer**: Not yet implemented.
      */
     autoLogoutTimer?: number;
+
+    /**
+     * **options.useEtags**: If true, the Rest service uses the etag-based cache mechanism from sysHUB server. If entities have not been changed, response will be HTTP status 304/Not modified with content = `null`.
+     * As the `Etag` header is not announced correct prior to 2024 it may or may not work. Statring with 2024 it will work.
+     * Default: *true*
+     */
+    useEtags?: boolean;
 }
 
 /**
@@ -284,5 +295,6 @@ export enum SyshubVersion {
     sysHUB_2021 = 1,
     sysHUB_2022 = 2,
     sysHUB_2023 = 3,
+    sysHUB_2024 = 4,
     DEFAULT = sysHUB_2023,
 }
