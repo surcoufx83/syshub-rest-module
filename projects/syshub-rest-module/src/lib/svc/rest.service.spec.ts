@@ -13,7 +13,7 @@ describe('RestService', () => {
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
 
-  let mockSettings = {
+  const mockSettings = {
     host: 'mock-host/',
     useBasicAuth: true,
     useOAuth: false,
@@ -22,9 +22,12 @@ describe('RestService', () => {
       password: 'mock-password',
       provider: 'mock-provider',
     },
+    options: {
+      useEtags: true
+    },
   };
 
-  let mockOauthSettings = {
+  const mockOauthSettings = {
     host: 'mock-host/',
     useBasicAuth: false,
     useOAuth: true,
@@ -35,10 +38,11 @@ describe('RestService', () => {
     },
     options: {
       autoLogoutOn401: true,
+      useEtags: true
     },
   };
 
-  let mockOauthSettingsPublicOnly = {
+  const mockOauthSettingsPublicOnly = {
     host: 'mock-host/',
     useBasicAuth: false,
     useOAuth: true,
@@ -49,10 +53,11 @@ describe('RestService', () => {
     },
     options: {
       autoLogoutOn401: true,
+      useEtags: true
     },
   };
 
-  let mockOauthSettingsPrivateOnly = {
+  const mockOauthSettingsPrivateOnly = {
     host: 'mock-host/',
     useBasicAuth: false,
     useOAuth: true,
@@ -63,6 +68,7 @@ describe('RestService', () => {
     },
     options: {
       autoLogoutOn401: true,
+      useEtags: true
     },
   };
 
@@ -88,34 +94,42 @@ describe('RestService', () => {
 
   afterEach(() => {
     localStorage.removeItem('authmod-session');
+    localStorage.removeItem('authmod-etags');
     subs.forEach((sub) => sub.unsubscribe());
     subs = [];
   });
 
-  function testGenericMethod(params: { fn: Function, url: string, method: string, expectedRequestBody: any, sendResponse: any, sendHeader?: { [key: string]: string } | undefined, expectedResponse?: any, status?: HttpStatusCode, statusText?: string, includeErrorTests?: boolean }[]) {
+  function testGenericMethod(params: { fn: Function, url: string, method: string, expectedRequestBody: any, sendResponse: any, sendHeader?: { [key: string]: string } | undefined, expectedResponse?: any, expectedHeaders?: { [key: string]: string | null }, status?: HttpStatusCode, statusText?: string, includeErrorTests?: boolean, includeNotModified?: boolean }[]) {
     let payload: any;
     let sub: Subscription;
     params.forEach((param) => {
       let subject = (<Observable<any>>param.fn());
-      expect(subject).withContext(`testPostMethod: Return type of ${param.fn} should be instanceOf Subject<Response>`).toBeInstanceOf(Subject<Response>);
+      expect(subject).withContext(`testGenericMethod: Return type of ${param.fn} should be instanceOf Subject<Response>`).toBeInstanceOf(Subject<Response>);
       sub = subject.subscribe((subject_payload) => payload = subject_payload);
-      let request = httpTestingController.expectOne(param.url, `testPostMethod: Url check ${param.fn}`);
-      expect(request.request.method).withContext(`testPostMethod: Check request method for ${param.fn}`).toEqual(param.method);
-      expect(request.request.body).withContext(`testPostMethod: Check request body for ${param.fn}`).toEqual(param.expectedRequestBody);
+      let request = httpTestingController.expectOne(param.url, `testGenericMethod: Url check ${param.fn}`);
+      expect(request.request.method).withContext(`testGenericMethod: Check request method for ${param.fn}`).toEqual(param.method);
+      expect(request.request.body).withContext(`testGenericMethod: Check request body for ${param.fn}`).toEqual(param.expectedRequestBody);
+      if (param.expectedHeaders) {
+        Object.keys(param.expectedHeaders).forEach((key) => {
+          expect(request.request.headers.get(key)).withContext(`testGenericMethod: Check request header ${key}`).toEqual(param.expectedHeaders![key]);
+        });
+      }
       request.flush(param.sendResponse, { status: param.status ?? HttpStatusCode.Ok, statusText: param.statusText ?? 'Ok', headers: param.sendHeader });
       tick(10);
       if (param.expectedResponse instanceof Error) {
-        expect(payload).withContext(`testPostMethod: Check processed payload type for ${param.fn}`).toBeInstanceOf(param.expectedResponse.constructor);
-        expect(payload).withContext(`testPostMethod: Check processed payload content for ${param.fn}`).toEqual(param.expectedResponse ?? param.sendResponse);
+        expect(payload).withContext(`testGenericMethod: Check processed payload type for ${param.fn}`).toBeInstanceOf(param.expectedResponse.constructor);
+        expect(payload).withContext(`testGenericMethod: Check processed payload content for ${param.fn}`).toEqual(param.expectedResponse ?? param.sendResponse);
       }
       else
-        expect(payload).withContext(`testPostMethod: Check processed payload for ${param.fn}`).toEqual(param.expectedResponse ?? param.sendResponse);
+        expect(payload).withContext(`testGenericMethod: Check processed payload for ${param.fn}`).toEqual(param.expectedResponse ?? param.sendResponse);
       sub?.unsubscribe();
       payload = undefined;
       if (param.includeErrorTests !== false) {
         testNetworkError(param.fn(), param.url);
         testStatusNotExpectedError(param.fn(), param.url);
       }
+      if (param.includeNotModified === true)
+        testNotModifiedError(param.fn(), param.url);
     });
   };
 
@@ -150,6 +164,14 @@ describe('RestService', () => {
       sub?.unsubscribe();
       payload = undefined;
     });
+  };
+
+  function testNotModifiedError(subject: Observable<any>, expectUrl: string): void {
+    let payload: any;
+    subs.push(subject.subscribe((subject_payload) => payload = subject_payload));
+    let request = httpTestingController.expectOne(expectUrl, 'Url called');
+    request.flush(null, { status: HttpStatusCode.NotModified, statusText: 'Not Modified' });
+    expect(payload).withContext('testNotModifiedError: Match returned content').toEqual(304);
   };
 
   function testStatusNotExpectedError(subject: Observable<any>, expectUrl: string): void {
@@ -244,6 +266,21 @@ describe('RestService', () => {
     expect(() => serviceInstance.login('', '')).withContext('Logging in with basic auth').toThrow(new Error('Method login not allowed for basic authentication'));
     flush();
   }));
+
+  it('should load etags from cache', () => {
+    localStorage.setItem('authmod-etags', JSON.stringify({ 'foo': 'bar' }));
+    const serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
+    expect(serviceInstance).toBeTruthy();
+  });
+
+  it('should remove etags if not in use', () => {
+    localStorage.setItem('authmod-etags', JSON.stringify({ 'foo': 'bar' }));
+    let tempsettings = <Settings><any>{ ...mockSettings };
+    tempsettings.options.useEtags = false;
+    const serviceInstance: RestService = new RestService(tempsettings, httpClient);
+    expect(serviceInstance).toBeTruthy();
+    expect(localStorage.getItem('authmod-etags')).withContext('Etag to be removed from localStorage').toBeNull();
+  });
 
   it('should handle login correct', fakeAsync(() => {
     const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
@@ -486,6 +523,57 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should handle etag cache correct', fakeAsync(() => {
+    localStorage.setItem('authmod-etags', JSON.stringify({ 'foo': 'bar' }));
+    let tempsettings = <Settings><any>{ ...mockSettings };
+    tempsettings.options.useEtags = true;
+    const serviceInstance: RestService = new RestService(tempsettings, httpClient);
+    testGenericMethod([{
+      fn: () => serviceInstance.get('category'),
+      url: `mock-host/webapi/v3/category`, method: 'GET',
+      expectedRequestBody: null,
+      sendResponse: { mock: 'foo' },
+      sendHeader: { 'etag': 'mock-etag' },
+      expectedResponse: { content: { mock: 'foo' }, etag: 'mock-etag', header: {}, status: 200 },
+      includeErrorTests: false
+    }]);
+    expect(JSON.parse(localStorage.getItem('authmod-etags') || '{}')).withContext('Correct etag cache set').toEqual(<any>{ foo: 'bar', category: 'mock-etag' });
+  }));
+
+  it('should handle etag cached request correct', fakeAsync(() => {
+    localStorage.setItem('authmod-etags', JSON.stringify({ 'category': 'mock-etag' }));
+    let tempsettings = <Settings><any>{ ...mockSettings };
+    tempsettings.options.useEtags = true;
+    const serviceInstance: RestService = new RestService(tempsettings, httpClient);
+    testGenericMethod([{
+      fn: () => serviceInstance.get('category'),
+      url: `mock-host/webapi/v3/category`, method: 'GET',
+      expectedRequestBody: null,
+      expectedHeaders: { 'If-None-Match': 'mock-etag' },
+      sendResponse: null,
+      status: HttpStatusCode.NotModified,
+      expectedResponse: { content: null, status: 304 },
+      includeErrorTests: false
+    }, {
+      fn: () => serviceInstance.get('category', undefined, true),
+      url: `mock-host/webapi/v3/category`, method: 'GET',
+      expectedRequestBody: null,
+      expectedHeaders: { 'If-None-Match': null },
+      sendResponse: { mock: 'foo' },
+      expectedResponse: { content: { mock: 'foo' }, etag: undefined, header: {}, status: 200 },
+      includeErrorTests: false
+    }, {
+      fn: () => serviceInstance.get('category', undefined, false, 'abc'),
+      url: `mock-host/webapi/v3/category`, method: 'GET',
+      expectedRequestBody: null,
+      expectedHeaders: { 'If-None-Match': 'abc' },
+      sendResponse: null,
+      status: HttpStatusCode.NotModified,
+      expectedResponse: { content: null, status: 304 },
+      includeErrorTests: false
+    }]);
+  }));
+
   it('should handle all methods correct', fakeAsync(() => {
     const simpleCustomResponse = { content: { mock: 'foo' }, etag: undefined, header: {}, status: 200 };
     const simpleObjectWithChildrenArray = { children: [{ mock: 'foo1' }, { mock: 'foo2' }] };
@@ -600,26 +688,30 @@ describe('RestService', () => {
         fn: () => serviceInstance.getBackupMetadata('mock-/folder'),
         url: `mock-host/webapi/v3/backuprestore/metadata?folder=${encodeURIComponent('mock-/folder')}`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getCategories(),
         url: `mock-host/webapi/v3/category/list`, method: 'GET',
         expectedRequestBody: null,
         sendResponse: simpleObjectWithChildrenArray,
-        expectedResponse: simpleObjectWithChildrenArray.children
+        expectedResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getCategory('mock-uuid'),
         url: `mock-host/webapi/v3/category/mock-uuid`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getCategoryRefs('mock-uuid'),
         url: `mock-host/webapi/v3/category/references/mock-uuid`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getCategoryRefs('mock-uuid', 'Decision'),
@@ -632,19 +724,22 @@ describe('RestService', () => {
         fn: () => serviceInstance.getCertStoreItems('keystore'),
         url: `mock-host/webapi/v3/certificate/list/keystore`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getClusterStatus(),
         url: `mock-host/webapi/v3/server/cluster`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getConfigChildren('mock-uuid'),
         url: `mock-host/webapi/v3/config/children?uuid=mock-uuid&maxDeep=0`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getConfigChildren('mock-uuid', 1),
@@ -657,20 +752,23 @@ describe('RestService', () => {
         fn: () => serviceInstance.getConfigItem('mock-uuid'),
         url: `mock-host/webapi/v3/config/mock-uuid`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getConfigPath('mock-uuid'),
         url: `mock-host/webapi/v3/config/path/mock-uuid`, method: 'GET',
         expectedRequestBody: null,
         sendResponse: { value: 'mock-response' },
-        expectedResponse: 'mock-response'
+        expectedResponse: 'mock-response',
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getConnectedClients(),
         url: `mock-host/webapi/v3/server/list/clientInformation?showAll=true`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getConnectedClients(false),
@@ -683,25 +781,29 @@ describe('RestService', () => {
         fn: () => serviceInstance.getCurrentUser(),
         url: `mock-host/webapi/v3/currentUser`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getCurrentUsersPermissions(),
         url: `mock-host/webapi/v3/users/currentUser/permissions`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getCurrentUsersRoles(),
         url: `mock-host/webapi/v3/users/currentUser/roles`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getDevices(),
         url: `mock-host/webapi/v3/server/list/devices`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getDevices(true),
@@ -715,7 +817,8 @@ describe('RestService', () => {
         url: `mock-host/webapi/v3/server/db/listAttributes/System?isNativeCall=true`, method: 'GET',
         expectedRequestBody: null,
         sendResponse: SystemNativeJndiDef,
-        expectedResponse: SystemJndiDefResponse
+        expectedResponse: SystemJndiDefResponse,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getJndiDatabaseStructure('custdb', false),
@@ -729,20 +832,23 @@ describe('RestService', () => {
         fn: () => serviceInstance.getJndiConnectionNames(),
         url: `mock-host/webapi/v3/server/db/listJNDI`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getJob(1),
         url: `mock-host/webapi/v3/jobs/1`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithId
+        sendResponse: simpleObjectWithId,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getJobDir(),
         url: `mock-host/webapi/v3/server/jobsDir`, method: 'GET',
         expectedRequestBody: null,
         sendResponse: { value: 'mock-dir' },
-        expectedResponse: 'mock-dir'
+        expectedResponse: 'mock-dir',
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getJobDir(1),
@@ -756,7 +862,8 @@ describe('RestService', () => {
         fn: () => serviceInstance.getJobType('mock-uuid'),
         url: `mock-host/webapi/v3/jobtype/mock-uuid`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithId
+        sendResponse: simpleObjectWithId,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getJobTypes(),
@@ -775,7 +882,8 @@ describe('RestService', () => {
           { uuid: 'mock-uuid2', title: 'mock-title2', category: null },
           { uuid: 'mock-uuid3', title: 'mock-title3', category: null },
           { uuid: 'mock-uuid4', title: 'mock-title4', category: { uuid: 'mock-cat-uuid' } }
-        ]
+        ],
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getJobs(),
@@ -784,6 +892,7 @@ describe('RestService', () => {
         sendResponse: { mock: 'mock-item' },
         sendHeader: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' },
         expectedResponse: { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' } },
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getJobs({ limit: 100, offset: 10, orderby: 'id', search: 'foo' }),
@@ -798,25 +907,29 @@ describe('RestService', () => {
         fn: () => serviceInstance.getNamedSystemsForConfigPath('mock-/foo'),
         url: `mock-host/webapi/v3/server/configuredSystems?elementPath=${encodeURIComponent('mock-/foo')}`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getPermissions(),
         url: `mock-host/webapi/v3/permissions`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getPermissionSets(),
         url: `mock-host/webapi/v3/permissionsets`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getPsetChildren('mock-uuid'),
         url: `mock-host/webapi/v3/parameterset/children?uuid=mock-uuid&maxDeep=0`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getPsetChildren('mock-uuid', 1),
@@ -829,32 +942,37 @@ describe('RestService', () => {
         fn: () => serviceInstance.getPsetItem('mock-uuid'),
         url: `mock-host/webapi/v3/parameterset/mock-uuid`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getPsetPath('mock-uuid'),
         url: `mock-host/webapi/v3/parameterset/path/mock-uuid`, method: 'GET',
         expectedRequestBody: null,
         sendResponse: { value: 'mock-response' },
-        expectedResponse: 'mock-response'
+        expectedResponse: 'mock-response',
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getRoles(),
         url: `mock-host/webapi/v3/roles`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getServerInformation(),
         url: `mock-host/webapi/v3/server/list/information`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getServerProperties(),
         url: `mock-host/webapi/v3/server/properties`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getSyslogEntries({}),
@@ -863,6 +981,7 @@ describe('RestService', () => {
         sendResponse: { mock: 'mock-item' },
         sendHeader: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' },
         expectedResponse: { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' } },
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getSyslogEntries({ limit: 100, offset: 10, orderby: 'id', search: 'foo' }),
@@ -877,7 +996,8 @@ describe('RestService', () => {
         fn: () => serviceInstance.getSyslogEntry(1),
         url: `mock-host/webapi/v3/syslogs/1`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getSyslogHostnames(),
@@ -885,6 +1005,7 @@ describe('RestService', () => {
         expectedRequestBody: null,
         sendResponse: { result: [{ 'col-1': 'mock-1' }, { 'col-1': 'mock-2' }] },
         expectedResponse: ['mock-1', 'mock-2'],
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getUserlogEntries({}),
@@ -893,6 +1014,7 @@ describe('RestService', () => {
         sendResponse: { mock: 'mock-item' },
         sendHeader: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' },
         expectedResponse: { content: { mock: 'mock-item' }, header: { Abs_count: '1024', Highest_Id: '815', Last: '815', Next: '1', First: '0', Previous: '-1' } },
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getUserlogEntries({ limit: 100, offset: 10, orderby: 'id', search: 'foo' }),
@@ -907,19 +1029,22 @@ describe('RestService', () => {
         fn: () => serviceInstance.getUserlogEntry(1),
         url: `mock-host/webapi/v3/userlogs/1`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getUsers(),
         url: `mock-host/webapi/v3/users`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getWorkflows({}),
         url: `mock-host/webapi/v3/workflows`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getWorkflows({ limit: 100, offset: 10, orderby: 'id', search: 'foo' }),
@@ -932,37 +1057,43 @@ describe('RestService', () => {
         fn: () => serviceInstance.getWorkflowExecution('mock-/uuid'),
         url: `mock-host/webapi/v3/workflows/execute/${encodeURIComponent('mock-/uuid')}`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getWorkflowExecutions(),
         url: `mock-host/webapi/v3/workflows/execute`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getWorkflowModel('mock-/uuid'),
         url: `mock-host/webapi/v3/workflow/${encodeURIComponent('mock-/uuid')}`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithStr
+        sendResponse: simpleObjectWithStr,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getWorkflowReferences('mock-/uuid'),
         url: `mock-host/webapi/v3/workflows/checkReferences?uuid=${encodeURIComponent('mock-/uuid')}`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getWorkflowStartpoints('mock-/uuid'),
         url: `mock-host/webapi/v3/server/startPoint/list/${encodeURIComponent('mock-/uuid')}`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: ['mock-1', 'mock-2']
+        sendResponse: ['mock-1', 'mock-2'],
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.getWorkflowVersions('mock-/uuid'),
         url: `mock-host/webapi/v3/workflows/${encodeURIComponent('mock-/uuid')}/versions`, method: 'GET',
         expectedRequestBody: null,
-        sendResponse: simpleObjectWithChildrenArray.children
+        sendResponse: simpleObjectWithChildrenArray.children,
+        includeNotModified: true
       },
       {
         fn: () => serviceInstance.head('category'),

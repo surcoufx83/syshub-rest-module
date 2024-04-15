@@ -81,7 +81,7 @@ describe('Settings', () => {
       host: 'https://mock-host/',
       version: SyshubVersion.DEFAULT,
       basic: { enabled: true, username: 'mock-username', password: 'mock-password', provider: 'mock-provider' },
-      options: { autoConnect: true, autoLogoutOn401: true },
+      options: { autoConnect: true, autoLogoutOn401: true, useEtags: true },
       throwErrors: false,
     };
     expect(settingsInstance).withContext('Object created').toBeTruthy();
@@ -107,7 +107,7 @@ describe('Settings', () => {
       host: 'https://mock-host/',
       version: SyshubVersion.DEFAULT,
       oauth: { enabled: true, clientId: 'mock-clientId', clientSecret: 'mock-clientSecret', scope: 'public', storeKey: 'authmod-session' },
-      options: { autoConnect: true, autoLogoutOn401: true },
+      options: { autoConnect: true, autoLogoutOn401: true, useEtags: true },
       throwErrors: false,
     };
     expect(settingsInstance).withContext('Object created').toBeTruthy();

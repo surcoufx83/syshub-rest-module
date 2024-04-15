@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] - Unreleased
+
+### Modified
+
+- **Breaking Change**: The Etag mechanism of the sysHUB Rest API has been enabled and added to each `get...()` method. An internal dictionary keeps track of the GET requests and the returned Etags. For each new request to previously called endpoints, the latest Etag is sent along. If the sysHUB server recognizes that no change has been made, it returns the HTTP status code 304/Not modified. This code is then passed on as the response. The Rest module does not transmit the cached content of the previous request, but only the code 304. It is therefore up to the application to save the data itself.
+The Etag functionality can be prevented per function call or globally so that the sysHUB server actually delivers the requested data.
+
 ## [4.0.0] - 2024-02-26
 
 ### Modified
@@ -14,7 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Automated tests have been implemented for classes and services to improve reliability and maintainability. All future changes must pass these tests prior to being included in a new release, ensuring high-quality updates.
-
 
 ## [3.3.2] - 2024-02-15
 
