@@ -103,13 +103,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.post(`backuprestore/backup?folder=${encodeURIComponent(folderpath)}`, { BACKUPDESCRIPTION: backupDescription, BACKUPNAME: backupName, BACKUPTYPES: includeOptions }).subscribe((response) => {
-      if (response.status == HttpStatusCode.Created) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Created)) {
         subject.next(<SyshubResponseSimple>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(201, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -125,13 +122,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.put(`category/list`, { children: [category] }).subscribe((response) => {
-      if (response.status == HttpStatusCode.Created) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Created)) {
         subject.next(<SyshubCategory[]>response.content['children']);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(201, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -163,16 +157,13 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.post(`jobs`, job, ['Location']).subscribe((response) => {
-      if (response.status == HttpStatusCode.Created) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Created)) {
         subject.next(<JobResponse>{
           content: response.content,
           header: response.header,
         });
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(201, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -188,16 +179,13 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.post(`syslogs`, entry, ['Location']).subscribe((response) => {
-      if (response.status == HttpStatusCode.Created) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Created)) {
         subject.next(<SyslogResponse>{
           content: response.content,
           header: response.header,
         });
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(201, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -213,16 +201,13 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.post(`userlogs`, entry, ['Location']).subscribe((response) => {
-      if (response.status == HttpStatusCode.Created) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Created)) {
         subject.next(<UserlogResponse>{
           content: response.content,
           header: response.header,
         });
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(201, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -272,13 +257,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.delete(`category/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubResponseSimple>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -294,13 +276,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.delete(`config/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubResponseSimple>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -316,13 +295,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.delete(`parameterset/${encodeURIComponent(uuid)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubResponseSimple>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -338,13 +314,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.delete(`jobs/${encodeURIComponent(id)}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.NoContent) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.NoContent)) {
         subject.next(true);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(204, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -422,17 +395,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get(`backuprestore/metadata?folder=${encodeURIComponent(folderpath)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubBackupMeta>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -448,17 +414,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`category/list`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubCategory[]>response.content['children']);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -475,17 +434,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`category/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubCategory>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -502,17 +454,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`category/references/${encodeURIComponent(uuid)}${type != undefined ? `?type=${encodeURIComponent(type)}` : ''}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubCategoryReference[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -529,17 +474,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get(`certificate/list/${store}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubCertStoreItem[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -555,17 +493,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`server/cluster`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubResponseSimple>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -583,17 +514,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`config/children?uuid=${encodeURIComponent(uuid)}&maxDeep=${encodeURIComponent(maxDeep)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubConfigItem[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -610,17 +534,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`config/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubConfigItem>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -637,17 +554,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`config/path/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next((<SyshubResponseSimple>response.content).value);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -664,17 +574,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`server/list/clientInformation?showAll=${all}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubClientConnection[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -690,17 +593,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get('currentUser', undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubUserAccount>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -716,17 +612,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get('users/currentUser/permissions', undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<string[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -742,17 +631,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get('users/currentUser/roles', undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<string[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -769,17 +651,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`server/list/devices${withImg ? `?withImages=true` : ``}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubIppDevice[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -804,11 +679,7 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`server/db/listAttributes/${encodeURIComponent(jndi)}?isNativeCall=${encodeURIComponent(native)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         const data = <DbStructResponse[]>response.content;
         let struct: SyshubJndiTable[] = [];
 
@@ -835,11 +706,8 @@ export class RestService {
         });
 
         subject.next(struct);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -855,17 +723,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get('server/db/listJNDI', undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<string[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -882,17 +743,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get(`jobs/${encodeURIComponent(id)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubJob>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -909,17 +763,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get(`server/jobsDir${id ? `?jobId=${encodeURIComponent(id)}` : ''}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next((<SyshubResponseSimple>response.content).value);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -936,17 +783,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`jobtype/${uuid}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubJobType>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -962,11 +802,7 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`jobtype/list`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         let types: SyshubJobType[] = [...(<{ children: SyshubJobType[] }>response.content).children];
         /*
          In 2023.2 the category property is an object with uuid = null if no category is assigned.
@@ -979,11 +815,8 @@ export class RestService {
           }
         }
         subject.next(types);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1001,20 +834,13 @@ export class RestService {
       return subject;
     let queryParams = this.createQueryParamsMap(params);
     this.get(`jobs${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, ['Abs_count', 'Highest_Id', 'Last', 'Next', 'First', 'Previous'], clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<JobsResponse>{
           content: response.content,
           header: response.header,
         });
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1031,17 +857,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`server/configuredSystems?elementPath=${encodeURIComponent(path)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<string[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1057,17 +876,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get('permissions', undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubPermission[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1083,17 +895,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get('permissionsets', undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubPermissionSet[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1111,17 +916,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`parameterset/children?uuid=${encodeURIComponent(uuid)}&maxDeep=${encodeURIComponent(maxDeep)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubPSetItem[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1138,17 +936,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`parameterset/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubPSetItem>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1165,17 +956,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`parameterset/path/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next((<SyshubResponseSimple>response.content).value);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1191,17 +975,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get('roles', undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubRole[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1217,17 +994,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get('server/list/information', undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubServerInformation>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1243,17 +1013,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get('server/properties', undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<{ [key: string]: string }>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1271,20 +1034,13 @@ export class RestService {
       return subject;
     let queryParams = this.createQueryParamsMap(params);
     this.get(`syslogs${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, ['Abs_count', 'Highest_Id', 'Last', 'Next', 'First', 'Previous'], clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyslogsResponse>{
           content: response.content,
           header: response.header,
         });
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1301,17 +1057,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get(`syslogs/${encodeURIComponent(id)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubSyslogEntry>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1327,20 +1076,13 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get(`syslogs/hostNames`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         const responseItems = <SyslogHostnamesResponse>response.content;
         let resultItems: string[] = [];
         responseItems.result.forEach((value) => resultItems.push(value['col-1']));
         subject.next(resultItems);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1358,20 +1100,13 @@ export class RestService {
       return subject;
     let queryParams = this.createQueryParamsMap(params);
     this.get(`userlogs${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, ['Abs_count', 'Highest_Id', 'Last', 'Next', 'First', 'Previous'], clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<UserlogsResponse>{
           content: response.content,
           header: response.header,
         });
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1388,17 +1123,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get(`userlogs/${encodeURIComponent(id)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubUserlogEntry>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1414,17 +1142,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`users`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubUserAccount[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1442,17 +1163,10 @@ export class RestService {
       return subject;
     let queryParams = this.createQueryParamsMap(params);
     this.get(`workflows${queryParams === '' ? '' : `?${queryParams.substring(1)}`}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubWorkflow[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1468,17 +1182,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get(`workflows/execute/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubWorkflowExecution>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1494,17 +1201,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.get(`workflows/execute`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubWorkflowExecution[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1522,17 +1222,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`workflow/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubWorkflowModel>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1549,17 +1242,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`workflows/checkReferences?uuid=${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubWorkflowReference[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1576,17 +1262,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`server/startPoint/list/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<string[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1603,17 +1282,10 @@ export class RestService {
     if (!this.requirePrivateScope(subject))
       return subject;
     this.get(`workflows/${encodeURIComponent(uuid)}/versions`, undefined, clean).subscribe((response) => {
-      if (response.status == HttpStatusCode.NotModified) {
-        subject.next(HttpStatusCode.NotModified);
-        subject.complete();
-      }
-      else if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubWorkflowVersion[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1635,6 +1307,12 @@ export class RestService {
     subject.complete();
   }
 
+  /**
+   * Generic response handler for generic methods (get, getc, post, etc).
+   * @param subject The obseravle subject to reply to.
+   * @param response The response from the sysHUB server.
+   * @param acceptHeader A list of headers that should be included in the subject.
+   */
   private handleResponse(subject: Subject<Response>, response: HttpResponse<any>, acceptHeader?: string[]): void {
     let respheader: { [key: string]: string | null } = {};
     acceptHeader?.forEach((key) => respheader[key] = response.headers.get(key));
@@ -1645,6 +1323,24 @@ export class RestService {
       status: response.status,
     });
     subject.complete();
+  }
+
+  /**
+   * Generic handling of response codes in specialized methods.
+   * @param subject The obseravle subject to reply to.
+   * @param response The response from the sysHUB server.
+   * @param ifNotStatus Only handle if the response status code does not match this param.
+   * @returns true if subject has been replied to. Subject is not yet completed. False: no changes have been made.
+   */
+  private handleResponseCode(subject: Subject<any>, response: Response, ifNotStatus: number,): boolean {
+    if (response.status == ifNotStatus)
+      return false;
+    if (response.status == HttpStatusCode.NotModified) {
+      subject.next(HttpStatusCode.NotModified);
+      return true;
+    }
+    subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
+    return true;
   }
 
   /**
@@ -1827,13 +1523,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.patch(`jobs/${encodeURIComponent(id)}`, job).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubJob>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -1966,13 +1659,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.put(`jobs/${encodeURIComponent(id)}`, job).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubJob>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -2034,13 +1724,10 @@ export class RestService {
     let subject: Subject<SyshubResponseSimple | Error> = new Subject<SyshubResponseSimple | Error>();
     this.requirePublicScope(subject);
     this.post(`backuprestore/restore?folder=${encodeURIComponent(folderpath)}`, { BACKUPTYPES: includeOptions }).subscribe((response) => {
-      if (response.status == HttpStatusCode.Created) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Created)) {
         subject.next(<SyshubResponseSimple>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(201, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -2057,13 +1744,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.post(`consolecommands/execute/${encodeURIComponent(cmd)}`, params).subscribe((response) => {
-      if (response.status == HttpStatusCode.Accepted) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Accepted)) {
         subject.next(<string[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(202, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -2215,13 +1899,10 @@ export class RestService {
     if (!this.requirePublicScope(subject))
       return subject;
     this.post('workflows/execute', jobId ? { async: async, workflowUuid: uuid, jobId: jobId } : { async: async, workflowUuid: uuid }, ['Location']).subscribe((response) => {
-      if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.Accepted) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Created)) {
         subject.next([response.header!['Location']!, response.status]);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(201, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -2278,13 +1959,10 @@ export class RestService {
     if (search.value != undefined && search.value != '')
       searchby.push(`value=${encodeURIComponent(search.value)}`)
     this.get(`config?${searchby.join('&')}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubConfigItem[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -2312,13 +1990,10 @@ export class RestService {
     if (search.value != undefined && search.value != '')
       searchby.push(`value=${encodeURIComponent(search.value)}`)
     this.get(`parameterset?${searchby.join('&')}`).subscribe((response) => {
-      if (response.status == HttpStatusCode.Ok) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubPSetItem[]>response.content);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
@@ -2340,13 +2015,10 @@ export class RestService {
     formdata.append('filename', fileName);
     formdata.append('file', file, fileName);
     this.post(`jobs/${encodeURIComponent(jobId)}/uploadFile?type=${encodeURIComponent(fileType)}`, formdata).subscribe((response) => {
-      if (response.status == HttpStatusCode.Created) {
+      if (!this.handleResponseCode(subject, response, HttpStatusCode.Created)) {
         subject.next(true);
-        subject.complete();
-      } else {
-        subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(201, response));
-        subject.complete();
       }
+      subject.complete();
     });
     return subject;
   }
