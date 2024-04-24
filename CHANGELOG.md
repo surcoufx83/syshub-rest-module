@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] - 2024-04-24
+
+### Added
+
+- The module has been changed to allow temporary sessions. This means, that if the `login()` method is called with the third parameter `keepLoggedin` = `false`, the token and session information will be stored in the browsers sessionStorage instead of the localStorage. After an user closes the browser window, the sessionStorage is cleared and though the session automatically removed. This closes the issue https://github.com/surcoufx83/syshub-rest-module/issues/2.
+
+### Modified
+
+- Methods that are called while the OAuth token is being refreshed are postponed for a short period of time (usually less than half a second) (closes https://github.com/surcoufx83/syshub-rest-module/issues/16).
+- The `logout()` method now revokes the token also in the sysHUB server by calling the `webauth/oauth/revoke_token` endpoint (closes https://github.com/surcoufx83/syshub-rest-module/issues/3).
+
 ## [5.0.1] ... [5.0.2] - 2024-04-15
 
 ### Modified

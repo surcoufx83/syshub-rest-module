@@ -95,6 +95,7 @@ describe('RestService', () => {
   afterEach(() => {
     localStorage.removeItem('authmod-session');
     localStorage.removeItem('authmod-etags');
+    sessionStorage.removeItem('authmod-session');
     subs.forEach((sub) => sub.unsubscribe());
     subs = [];
   });
@@ -291,13 +292,39 @@ describe('RestService', () => {
     expect(request.request.body).withContext('Request body').toEqual('grant_type=password&username=mock-user&password=mock-password&scope=private+public&client_id=mock-clientId&client_secret=mock-clientSecret');
     request.flush({ access_token: 'mock-access_token', expires_in: 3600, refresh_token: 'mock-refresh_token', scope: 'private+public' }, { status: HttpStatusCode.Ok, statusText: 'Ok' });
     tick(10);
-    let storage: any = localStorage.getItem('authmod-session');
-    expect(storage == null).withContext('Session data set after login response').toBeFalse();
-    if (storage != null) {
-      storage = JSON.parse(storage);
-      expect(storage['accessToken']).withContext('Session data check accessToken').toEqual('mock-access_token');
-      expect(storage['refreshToken']).withContext('Session data check refreshToken').toEqual('mock-refresh_token');
-      expect(storage['expiresIn']).withContext('Session data check expiresIn').toEqual(3600);
+    let localStorageData: any = localStorage.getItem('authmod-session');
+    let sessionStorageData: any = sessionStorage.getItem('authmod-session');
+    expect(localStorageData == null).withContext('Session data set after login response in localStorage').toBeFalse();
+    expect(sessionStorageData == null).withContext('Session data not set after login response in sessionStorage').toBeTrue();
+    if (localStorageData != null) {
+      localStorageData = JSON.parse(localStorageData);
+      expect(localStorageData['accessToken']).withContext('Session data check accessToken').toEqual('mock-access_token');
+      expect(localStorageData['refreshToken']).withContext('Session data check refreshToken').toEqual('mock-refresh_token');
+      expect(localStorageData['expiresIn']).withContext('Session data check expiresIn').toEqual(3600);
+    }
+    expect(payload).withContext('Method to return true in subject').toBeTrue();
+    sub.unsubscribe();
+    flush();
+  }));
+
+  it('should handle login (keepLoggedin = false) correct', fakeAsync(() => {
+    const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
+    let payload: any;
+    let sub = (<Observable<boolean | null | HttpErrorResponse>>serviceInstance.login('mock-user', 'mock-password', false)).subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(`mock-host/webauth/oauth/token`, `Called url: serviceInstance.login('mock-user', 'mock-password')`);
+    expect(request.request.method).withContext('Request method').toEqual('POST');
+    expect(request.request.body).withContext('Request body').toEqual('grant_type=password&username=mock-user&password=mock-password&scope=private+public&client_id=mock-clientId&client_secret=mock-clientSecret');
+    request.flush({ access_token: 'mock-access_token', expires_in: 3600, refresh_token: 'mock-refresh_token', scope: 'private+public' }, { status: HttpStatusCode.Ok, statusText: 'Ok' });
+    tick(10);
+    let localStorageData: any = localStorage.getItem('authmod-session');
+    let sessionStorageData: any = sessionStorage.getItem('authmod-session');
+    expect(localStorageData == null).withContext('Session data set after login response in localStorage').toBeTrue();
+    expect(sessionStorageData == null).withContext('Session data not set after login response in sessionStorage').toBeFalse();
+    if (sessionStorageData != null) {
+      sessionStorageData = JSON.parse(sessionStorageData);
+      expect(sessionStorageData['accessToken']).withContext('Session data check accessToken').toEqual('mock-access_token');
+      expect(sessionStorageData['refreshToken']).withContext('Session data check refreshToken').toEqual('mock-refresh_token');
+      expect(sessionStorageData['expiresIn']).withContext('Session data check expiresIn').toEqual(3600);
     }
     expect(payload).withContext('Method to return true in subject').toBeTrue();
     sub.unsubscribe();

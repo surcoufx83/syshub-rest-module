@@ -87,7 +87,7 @@ export const environment: MyEnvironment = {
 
 The REST API of sysHUB has undergone significant changes from version 2021 to 2022, and minor updates from 2022 to 2023. It is now accessible via `/webapi/` instead of the previous `/cosmos-webapi/`. Consequently, this module introduces a version switch in its configuration to accommodate these changes. If this switch is not explicitly set, the module defaults to the latest version, which is currently 2023. To configure the module for use with sysHUB server versions 2021 or 2022, adjust the version setting as necessary.
 
-Below is a code example demonstrating how to configure the REST module for a sysHUB server version 2021:
+Below is a code example demonstrating how to configure the REST module for a sysHUB server version 2023:
 
 ```ts
 import { BasicRestSettings, SyshubVersion } from "syshub-rest-module";
@@ -99,7 +99,7 @@ export type MyEnvironment = {
 export const environment: MyEnvironment = {
     syshub: {
         host: "/",
-        version: SyshubVersion.sysHUB_2021,
+        version: SyshubVersion.sysHUB_2023,
         basic: {
             enabled: true,
             username: "<basic username>",
@@ -182,6 +182,18 @@ export class LoginMinComponent {
 }
 ```
 
+#### Temporary sessions
+
+In this example, temporary sessions are utilized to store user login data. By setting the third parameter of the `login()` method to `false`, the user credentials are stored in the sessionStorage instead of the localStorage of the browser.
+
+```typescript
+  this.restService.login(this.username, this.password, false).subscribe((response) => { 
+    // your code goes here
+  });
+```
+
+Sessions stored in the sessionStorage are automatically cleared when the browser is closed, providing a secure and temporary means of storing user authentication data.
+
 ### Check login state before sending request
 
 Before sending a request to the server's Rest API, it should be ensured that a user is logged in. For this, either the method `getIsLoggedIn()` of the *RestService* can be queried or subscribed to `isLoggedIn`. `isLoggedIn` reports every change of the login status and so it is also possible to react on successful logout and login.
@@ -227,6 +239,12 @@ export class LoginMinComponent implements OnDestroy {
 
 }
 ```
+
+#### Renewal of OAuth2 tokens
+
+There may be a short period of half a second or less where requests are deferred to the Rest API to refresh the token and store it in the browser cache. The calling function will not notice this as the subscription will not be updated while waiting for the renewal method to complete. This happens automatically and is not configurable.
+
+If the module did not defer the requests, it can happen that a request uses an old access token that has already been changed in the backend but has not yet been updated in the browser. This then leads to a 403/Forbidden status. 
 
 ### Calling Rest API endpoints
 

@@ -14,6 +14,8 @@ export class Session implements OAuthSession {
   private refreshIsDue$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public refreshIsDue = this.refreshIsDue$.asObservable();
 
+  private storageLocation: 'LocalStorage' | 'SessionStorage' = 'LocalStorage';
+
   // track the current access token and make it public readable
   private token$: BehaviorSubject<string> = new BehaviorSubject<string>('');
   public token = this.token$.asObservable();
@@ -34,6 +36,8 @@ export class Session implements OAuthSession {
       return;
     this.sessiontoken = undefined;
     localStorage.removeItem(this.settings.oauth?.storeKey ?? 'authmod-session');
+    sessionStorage.removeItem(this.settings.oauth?.storeKey ?? 'authmod-session');
+    this.storageLocation = 'LocalStorage';
     this.loggedin$.next(false);
     this.token$.next('');
     this.refreshIsDue$.next(false);
@@ -60,10 +64,15 @@ export class Session implements OAuthSession {
    */
   private loadToken(): void {
     let store: Token | string | null = localStorage.getItem(this.settings.oauth?.storeKey ?? 'authmod-session');
+    if (store == null) {
+      store = sessionStorage.getItem(this.settings.oauth?.storeKey ?? 'authmod-session');
+      if (store != null)
+        this.storageLocation = 'SessionStorage';
+    }
     if (store != null) {
       store = <Token>(JSON.parse(<string>store));
       store.grantTime = new Date(store.grantTime);
-      this.setToken(store);
+      this.setToken(store, this.storageLocation == 'LocalStorage');
     }
   }
 
@@ -75,23 +84,31 @@ export class Session implements OAuthSession {
   private refreshToken(): void {
     clearTimeout(this.timeout);
     let nextcall = this.loggedin$.value ? (this.sessiontoken?.expiryTime?.getTime() ?? Date.now() + 10) - Date.now() - 2500 : 10;
-    nextcall = nextcall < 0 ? 1 : nextcall > 3600000 ? 3600000 : nextcall;
+    nextcall = nextcall < 0 ? 0 : nextcall > 3600000 ? 3600000 : nextcall;
     this.timeout = setTimeout(() => {
-      this.refreshIsDue$.next(true);
+      if (this.loggedin$.value === true)
+        this.refreshIsDue$.next(true);
     }, nextcall);
   }
 
   /**
    * Assigns a new Token to the current session (will be called by Rest Service after successfull login or token refresh).
    * @param token A Token object.
+   * @param keepLoggedin A boolean which defines storage location and persistence of the session (true = localStorage = permanent, false = sessionStorag = until browser window closed)
    */
-  public setToken(token: Token): void {
+  public setToken(token: Token, keepLoggedin?: boolean): void {
     if (this.settings.useBasicAuth === true)
       return;
+    if (keepLoggedin === undefined)
+      keepLoggedin = this.storageLocation == 'LocalStorage';
+    this.storageLocation = keepLoggedin ? 'LocalStorage' : 'SessionStorage';
     this.refreshIsDue$.next(false);
     token.expiryTime = new Date(new Date(token.grantTime).setSeconds(token.grantTime.getSeconds(), token.expiresIn * 1000));
     this.sessiontoken = token;
-    localStorage.setItem(this.settings.oauth?.storeKey ?? 'authmod-session', JSON.stringify(token));
+    if (keepLoggedin)
+      localStorage.setItem(this.settings.oauth?.storeKey ?? 'authmod-session', JSON.stringify(token));
+    else
+      sessionStorage.setItem(this.settings.oauth?.storeKey ?? 'authmod-session', JSON.stringify(token));
     this.token$.next(token.accessToken);
     this.validateToken();
   }
@@ -111,7 +128,7 @@ export class Session implements OAuthSession {
 export type OAuthSession = {
   isLoggedIn: Observable<boolean>;
   clearToken(): void;
-  setToken(token: Token): void;
+  setToken(token: Token, keepLoggedin: boolean): void;
 }
 
 export type Token = {
