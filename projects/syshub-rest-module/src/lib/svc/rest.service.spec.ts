@@ -395,7 +395,6 @@ describe('RestService', () => {
     tempsettings.throwErrors = true;
     serviceInstance = new RestService(<Settings><any>tempsettings, httpClient);
     expect(() => serviceInstance.getCategory('')).withContext('Should throw an error if enabled').toThrow(new MissingScopeError('private'));
-    flush();
   }));
 
   it('should handle missing public scope correct', fakeAsync(() => {

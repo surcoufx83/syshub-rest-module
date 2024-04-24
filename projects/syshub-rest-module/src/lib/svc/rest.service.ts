@@ -1316,15 +1316,12 @@ export class RestService {
 
   /**
    * In case of an arror in get(), post(), patch(), etc... this method creates the
-   * subject error status that is returned to the caller. In case of a 401/Unauthorized
-   * error, it forces a token refresh. If this failes, the user will be logged out.
+   * subject error status that is returned to the caller.
    * @param subject The subject to be set with the error.
    * @param e The error response from the call to the server.
    */
   private handleError(subject: Subject<Response>, e: HttpErrorResponse, refreshSubscription?: Subscription): void {
     refreshSubscription?.unsubscribe();
-    if (e.status == HttpStatusCode.Unauthorized)
-      this.refresh();
     subject.next({
       content: e.error,
       status: e.status,
