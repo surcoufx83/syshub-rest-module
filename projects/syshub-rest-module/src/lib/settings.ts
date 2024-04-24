@@ -281,7 +281,7 @@ export type RestOptionsSettings = {
 
     /**
      * **options.useEtags**: If true, the Rest service uses the etag-based cache mechanism from sysHUB server. If entities have not been changed, response will be HTTP status 304/Not modified with content = `null`.
-     * As the `Etag` header is not announced correct prior to 2024 it may or may not work. Statring with 2024 it will work.
+     * As the `Etag` header is not announced correct prior to 2024 it may or may not work.
      * Default: *true*
      */
     useEtags?: boolean;

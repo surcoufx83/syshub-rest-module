@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpResponse, HttpStatusCode } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs';
 import {
   ArgumentError,
   MissingScopeError,
@@ -58,6 +58,13 @@ export class RestService {
   // track the current login state and make it public readable
   private isLoggedIn$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public isLoggedIn = this.isLoggedIn$.asObservable();
+
+  /**
+   * track the current refreshing state. While the module is renewing the OAuth token
+   * this will be true and all request will be postponed.
+   */
+  private isRefreshing$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+  private isRefreshing = this.isRefreshing$.asObservable();
 
   // track the current access token and make it public readable
   private token$: BehaviorSubject<string> = new BehaviorSubject<string>('');
@@ -222,9 +229,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.delete<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.delete<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, undefined, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -239,9 +250,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.delete<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.delete<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, undefined, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -335,25 +350,30 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    let header: { [key: string]: string } = {};
-    if (this.settings.options.useEtags) {
-      // include etag-based request header if option is enabled
-      if (clean == false) {
-        if (etag != '')
-          header["If-None-Match"] = etag;
-        else if (this.etagCache[endpoint] != undefined)
-          header["If-None-Match"] = this.etagCache[endpoint];
-      }
-    }
-    this.httpClient.get<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response', headers: header }).subscribe({
-      next: (response) => {
-        if (this.settings.options.useEtags && response.headers.has('Etag') && response.headers.get('Etag') != null) {
-          this.etagCache[endpoint] = response.headers.get('Etag')!;
-          this.saveEtagCache();
+
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        let header: { [key: string]: string } = {};
+        if (this.settings.options.useEtags) {
+          // include etag-based request header if option is enabled
+          if (clean == false) {
+            if (etag != '')
+              header["If-None-Match"] = etag;
+            else if (this.etagCache[endpoint] != undefined)
+              header["If-None-Match"] = this.etagCache[endpoint];
+          }
         }
-        this.handleResponse(subject, response, acceptHeader);
-      },
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+        this.httpClient.get<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response', headers: header }).subscribe({
+          next: (response) => {
+            if (this.settings.options.useEtags && response.headers.has('Etag') && response.headers.get('Etag') != null) {
+              this.etagCache[endpoint] = response.headers.get('Etag')!;
+              this.saveEtagCache();
+            }
+            this.handleResponse(subject, response, acceptHeader, sub);
+          },
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -369,9 +389,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.get<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response, acceptHeader),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.get<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, acceptHeader, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -1297,7 +1321,8 @@ export class RestService {
    * @param subject The subject to be set with the error.
    * @param e The error response from the call to the server.
    */
-  private handleError(subject: Subject<Response>, e: HttpErrorResponse): void {
+  private handleError(subject: Subject<Response>, e: HttpErrorResponse, refreshSubscription?: Subscription): void {
+    refreshSubscription?.unsubscribe();
     if (e.status == HttpStatusCode.Unauthorized)
       this.refresh();
     subject.next({
@@ -1313,7 +1338,8 @@ export class RestService {
    * @param response The response from the sysHUB server.
    * @param acceptHeader A list of headers that should be included in the subject.
    */
-  private handleResponse(subject: Subject<Response>, response: HttpResponse<any>, acceptHeader?: string[]): void {
+  private handleResponse(subject: Subject<Response>, response: HttpResponse<any>, acceptHeader?: string[], refreshSubscription?: Subscription): void {
+    refreshSubscription?.unsubscribe();
     let respheader: { [key: string]: string | null } = {};
     acceptHeader?.forEach((key) => respheader[key] = response.headers.get(key));
     subject.next({
@@ -1353,9 +1379,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, undefined, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -1370,9 +1400,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.head<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, undefined, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -1447,9 +1481,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, undefined, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -1464,9 +1502,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.options<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, undefined, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -1484,9 +1526,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.patch<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, payload, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response, acceptHeader),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.patch<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, payload, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, acceptHeader, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -1504,9 +1550,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.patch<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, payload, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response, acceptHeader),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.patch<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, payload, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, acceptHeader, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -1545,9 +1595,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.post<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, payload, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response, acceptHeader),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.post<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, payload, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, acceptHeader, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -1566,9 +1620,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.post<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, payload, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response, acceptHeader),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.post<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, payload, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, acceptHeader, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -1586,9 +1644,13 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.put<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, payload, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response, acceptHeader),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.put<HttpResponse<any>>(`${this.settings.host}webapi/v3/${endpoint}`, payload, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, acceptHeader, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
@@ -1606,21 +1668,24 @@ export class RestService {
     let subject: Subject<Response> = new Subject<Response>();
     if (!this.requireLoggedin(subject))
       return subject;
-    this.httpClient.put<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, payload, { observe: 'response' }).subscribe({
-      next: (response) => this.handleResponse(subject, response, acceptHeader),
-      error: (e: HttpErrorResponse) => this.handleError(subject, e)
+    let sub = this.isRefreshing.subscribe((state) => {
+      if (state == false) {
+        this.httpClient.put<HttpResponse<any>>(`${this.settings.host}webapi/custom/${endpoint}`, payload, { observe: 'response' }).subscribe({
+          next: (response) => this.handleResponse(subject, response, acceptHeader, sub),
+          error: (e: HttpErrorResponse) => this.handleError(subject, e, sub)
+        });
+      }
     });
     return subject;
   }
 
-  private isRefreshing: boolean = false;
   /**
    * Private method which handles the automatic refresh of a session.
    */
   private refresh(): void {
-    if (this.isRefreshing)
+    if (this.isRefreshing$.value)
       return;
-    this.isRefreshing = true;
+    this.isRefreshing$.next(true);
     let body: string = `grant_type=refresh_token&refresh_token=${this.session.getRefreshToken()}&`
       + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
     this.httpClient.post<any>(`${this.settings!.host}webauth/oauth/token`, body).subscribe({
@@ -1635,13 +1700,14 @@ export class RestService {
         };
         this.session.setToken(token);
         setTimeout(() => {
-          this.isRefreshing = false;
-        }, 5000);
+          // reset refreshing flag after a few millisecs so session has enough time to update anything
+          this.isRefreshing$.next(false);
+        }, 20);
       },
       error: (e: HttpErrorResponse) => {
         if ((e.status == 400 || e.status == 401 || e.status == 403) && this.settings.options.autoLogoutOn401) {
           this.logout();
-          this.isRefreshing = false;
+          this.isRefreshing$.next(false);
         }
       }
     });
