@@ -77,7 +77,8 @@ export class Session implements OAuthSession {
     let nextcall = this.loggedin$.value ? (this.sessiontoken?.expiryTime?.getTime() ?? Date.now() + 10) - Date.now() - 2500 : 10;
     nextcall = nextcall < 0 ? 0 : nextcall > 3600000 ? 3600000 : nextcall;
     this.timeout = setTimeout(() => {
-      this.refreshIsDue$.next(true);
+      if (this.loggedin$.value === true)
+        this.refreshIsDue$.next(true);
     }, nextcall);
   }
 

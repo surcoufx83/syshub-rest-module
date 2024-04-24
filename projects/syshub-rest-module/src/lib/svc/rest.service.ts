@@ -1464,6 +1464,12 @@ export class RestService {
    * Method to clear the users login session.
    */
   public logout(): void {
+    if (this.settings.useOAuth === true) {
+      this.httpClient.delete<any>(`${this.settings!.host}webauth/oauth/revoke_token`).subscribe({
+        next: (response) => { },
+        error: (e: HttpErrorResponse) => { }
+      });
+    }
     this.session.clearToken();
     localStorage.removeItem('authmod-etags');
   }
