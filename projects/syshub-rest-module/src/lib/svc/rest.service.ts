@@ -1422,10 +1422,11 @@ export class RestService {
    * Login method to send the username and its password to the Rest API to signin the user.
    * @param username A string containing the users username.
    * @param password A string containing the users password.
+   * @param [keepLoggedin=true] A boolean indicating whether the session is permanent.
    * @returns A subscribable subject that contains the status of the login process. It starts with null, and changes to 
    * true on success or an HttpErrorResponse in case of any error.
    */
-  public login(username: string, password: string): BehaviorSubject<boolean | null | HttpErrorResponse> {
+  public login(username: string, password: string, keepLoggedin: boolean = true): BehaviorSubject<boolean | null | HttpErrorResponse> {
     const serv = this;
     let subject = new BehaviorSubject<boolean | null | HttpErrorResponse>(null);
     if (!this.settings.useOAuth) {
@@ -1445,7 +1446,7 @@ export class RestService {
             refreshToken: responseBody.refresh_token,
             username: username
           };
-          serv.session.setToken(token);
+          serv.session.setToken(token, keepLoggedin);
           subject.next(true);
           subject.complete();
         }

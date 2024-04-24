@@ -182,6 +182,18 @@ export class LoginMinComponent {
 }
 ```
 
+#### Temporary sessions
+
+In this example, temporary sessions are utilized to store user login data. By setting the third parameter of the `login()` method to `false`, the user credentials are stored in the sessionStorage instead of the localStorage of the browser.
+
+```typescript
+  this.restService.login(this.username, this.password, false).subscribe((response) => { 
+    // your code goes here
+  });
+```
+
+Sessions stored in the sessionStorage are automatically cleared when the browser is closed, providing a secure and temporary means of storing user authentication data.
+
 ### Check login state before sending request
 
 Before sending a request to the server's Rest API, it should be ensured that a user is logged in. For this, either the method `getIsLoggedIn()` of the *RestService* can be queried or subscribed to `isLoggedIn`. `isLoggedIn` reports every change of the login status and so it is also possible to react on successful logout and login.
