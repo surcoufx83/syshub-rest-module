@@ -35,7 +35,7 @@ Type hints (comments) are provided for each type and property, serving as docume
 
 #### Example configuration - Basic auth (static)
 
-The following code is an example to setup your environment for basic authentication.
+The following code is an example to set up your environment for basic authentication.
 This example uses static, predefined user-independent access data. In the scenario where the access data is entered by a user, please use the [following section](#example-configuration---basic-auth-user-input).
 
 ```ts
@@ -61,7 +61,7 @@ export const environment: MyEnvironment = {
 
 #### Example configuration - Basic auth (user input)
 
-The following code is an example of how to set up your environment for basic authentication where the access data (user name and password) comes through the web application, e.g. through a user input. In this case, [a login must be executed](#userlogin-example) before the first request to the Rest API. The access data is then saved in the browser cache.
+The following code is an example of how to set up your environment for basic authentication where the access data (username and password) comes through the web application, e.g. through a user input. In this case, [a login must be executed](#userlogin-example) before the first request to the Rest API. The access data is then saved in the browser cache.
 
 ```ts
 import { BasicRestSettings } from "syshub-rest-module";
@@ -87,7 +87,7 @@ export const environment: MyEnvironment = {
 
 #### Example configuration - OAuth
 
-The following code is an example to setup your environment for OAuth2 authentication.
+The following code is an example to set up your environment for OAuth2 authentication.
 
 ```ts
 import { OAuthRestSettings } from "syshub-rest-module";

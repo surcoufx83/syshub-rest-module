@@ -35,7 +35,7 @@ Type hints (comments) are provided for each type and property, serving as docume
 
 #### Example configuration - Basic auth (static)
 
-The following code is an example to setup your environment for basic authentication.
+The following code is an example to set up your environment for basic authentication.
 This example uses static, predefined user-independent access data. In the scenario where the access data is entered by a user, please use the [following section](#example-configuration---basic-auth-user-input).
 
 ```ts
