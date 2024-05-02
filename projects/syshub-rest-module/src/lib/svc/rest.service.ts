@@ -1437,7 +1437,6 @@ export class RestService {
   }
 
   private loginBasic(username: string, password: string, keepLoggedin: boolean = true): BehaviorSubject<boolean | null | HttpErrorResponse> {
-    console.log('loginBasic', username)
     this.session.setBasicToken({ username: username, password: password }, keepLoggedin);
     let subject = new BehaviorSubject<boolean | null | HttpErrorResponse>(null);
     this.getCurrentUser(true).subscribe((user) => {

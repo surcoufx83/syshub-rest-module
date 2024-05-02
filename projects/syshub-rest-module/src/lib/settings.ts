@@ -6,7 +6,6 @@ export class Settings {
 
     constructor(private settings: BasicRestSettings | OAuthRestSettings) {
         this.validate();
-        console.log(this.settings)
         this.valid$ = true;
     }
 

@@ -22,8 +22,6 @@ export class Session implements OAuthSession {
 
   constructor(private settings: Settings) {
     // Basic Auth is handled as always logged in.
-    console.log(this.settings.useBasicAuth)
-    console.log(this.settings.basic?.requiresLogin)
     if (this.settings.useBasicAuth === true && this.settings.basic?.requiresLogin === false)
       this.loggedin$.next(true);
     else
@@ -69,7 +67,6 @@ export class Session implements OAuthSession {
    * Loads the session information from browser cache.
    */
   private loadToken(): void {
-    console.log('loadToken')
     let store: Token | BasicCredentials | string | null = localStorage.getItem(this.settings.oauth?.storeKey ?? 'authmod-session');
     if (store == null) {
       store = sessionStorage.getItem(this.settings.oauth?.storeKey ?? 'authmod-session');

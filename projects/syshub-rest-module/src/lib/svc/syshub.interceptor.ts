@@ -20,8 +20,6 @@ export class SyshubInterceptor implements HttpInterceptor {
     if (this.settings.useBasicAuth)
       this.basictoken = window.btoa(`${this.settings.basic!.username}:${this.settings.basic!.password}`);
 
-    console.log(this.settings)
-
     /**
      * Check 1: Endpoint for OAuth login is called
      *   Force content type application/x-www-form-urlencoded
