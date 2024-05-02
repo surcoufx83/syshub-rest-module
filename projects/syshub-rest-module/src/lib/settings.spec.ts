@@ -44,35 +44,66 @@ describe('Settings', () => {
   it('should throw error if basic.username is missing or empty', () => {
     expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true } })).toThrowError(/^E5.*/);
     expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: null } })).toThrowError(/^E5.*/);
-    expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: '' } })).toThrowError(/^E5.*/);
   });
 
   it('should throw error if basic.password is missing or empty', () => {
     expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: 'foo' } })).toThrowError(/^E6.*/);
     expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: 'foo', password: null } })).toThrowError(/^E6.*/);
-    expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: 'foo', password: '' } })).toThrowError(/^E6.*/);
   });
 
   it('should throw error if basic.provider is missing or empty', () => {
-    expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: 'foo', password: 'foo' } })).toThrowError(/^E7.*/);
-    expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: 'foo', password: 'foo', provider: null } })).toThrowError(/^E7.*/);
-    expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: 'foo', password: 'foo', provider: '' } })).toThrowError(/^E7.*/);
+    expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: 'foo', password: 'foo' } })).toThrowError(/^E8.*/);
+    expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: 'foo', password: 'foo', provider: null } })).toThrowError(/^E8.*/);
+    expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: 'foo', password: 'foo', provider: '' } })).toThrowError(/^E8.*/);
+  });
+
+  it('should clear username and password if requiresLogin', () => {
+    const validateObj: BasicRestSettings = {
+      host: 'https://mock-host/',
+      version: SyshubVersion.DEFAULT,
+      basic: { enabled: true, username: 'mock-username', password: 'mock-password', provider: 'mock-provider', requiresLogin: true },
+      options: { autoConnect: true, autoLogoutOn401: true, useEtags: true },
+      throwErrors: false,
+    };
+    const settingsInstance = new Settings(validateObj);
+    expect(settingsInstance.basic?.requiresLogin).toBeTrue();
+    expect(settingsInstance.basic?.username).toEqual('');
+    expect(settingsInstance.basic?.password).toEqual('');
+  });
+
+  it('should set requiresLogin if username and password empty', () => {
+    const validateObj: BasicRestSettings = {
+      host: 'https://mock-host/',
+      version: SyshubVersion.DEFAULT,
+      basic: { enabled: true, username: '', password: '', provider: 'mock-provider', requiresLogin: false },
+      options: { autoConnect: true, autoLogoutOn401: true, useEtags: true },
+      throwErrors: false,
+    };
+    const settingsInstance = new Settings(validateObj);
+    expect(settingsInstance.basic?.requiresLogin).toBeTrue();
+    expect(settingsInstance.basic?.username).toEqual('');
+    expect(settingsInstance.basic?.password).toEqual('');
+  });
+
+  it('should throw an error if username or password empty', () => {
+    expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: 'foo', password: '' } })).toThrowError(/^E7.*/);
+    expect(() => new Settings(<any>{ host: 'foo', basic: { enabled: true, username: '', password: 'bar' } })).toThrowError(/^E7.*/);
   });
 
   it('should throw error if oauth.enabled is missing', () => {
-    expect(() => new Settings(<any>{ host: 'foo', oauth: {} })).toThrowError(/^E8.*/);
+    expect(() => new Settings(<any>{ host: 'foo', oauth: {} })).toThrowError(/^E9.*/);
   });
 
   it('should throw error if oauth.clientId is missing or empty', () => {
-    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true } })).toThrowError(/^E9.*/);
-    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true, clientId: null } })).toThrowError(/^E9.*/);
-    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true, clientId: '' } })).toThrowError(/^E9.*/);
+    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true } })).toThrowError(/^E10.*/);
+    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true, clientId: null } })).toThrowError(/^E10.*/);
+    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true, clientId: '' } })).toThrowError(/^E10.*/);
   });
 
   it('should throw error if oauth.clientSecret is missing or empty', () => {
-    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true, clientId: 'foo' } })).toThrowError(/^E10.*/);
-    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true, clientId: 'foo', clientSecret: null } })).toThrowError(/^E10.*/);
-    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true, clientId: 'foo', clientSecret: '' } })).toThrowError(/^E10.*/);
+    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true, clientId: 'foo' } })).toThrowError(/^E11.*/);
+    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true, clientId: 'foo', clientSecret: null } })).toThrowError(/^E11.*/);
+    expect(() => new Settings(<any>{ host: 'foo', oauth: { enabled: true, clientId: 'foo', clientSecret: '' } })).toThrowError(/^E11.*/);
   });
 
   it('should create an basic auth instance', () => {
@@ -80,7 +111,7 @@ describe('Settings', () => {
     const validateObj: BasicRestSettings = {
       host: 'https://mock-host/',
       version: SyshubVersion.DEFAULT,
-      basic: { enabled: true, username: 'mock-username', password: 'mock-password', provider: 'mock-provider' },
+      basic: { enabled: true, username: 'mock-username', password: 'mock-password', provider: 'mock-provider', requiresLogin: false },
       options: { autoConnect: true, autoLogoutOn401: true, useEtags: true },
       throwErrors: false,
     };

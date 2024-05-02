@@ -18,8 +18,24 @@ describe('RestService', () => {
     useBasicAuth: true,
     useOAuth: false,
     basic: {
+      requiresLogin: false,
       username: 'mock-username',
       password: 'mock-password',
+      provider: 'mock-provider',
+    },
+    options: {
+      useEtags: true
+    },
+  };
+
+  const mockBasicSettingsRequiresLogin = {
+    host: 'mock-host/',
+    useBasicAuth: true,
+    useOAuth: false,
+    basic: {
+      requiresLogin: true,
+      username: '',
+      password: '',
       provider: 'mock-provider',
     },
     options: {
@@ -268,6 +284,12 @@ describe('RestService', () => {
     flush();
   }));
 
+  it('should not throw error when trying to login with basic auth but required credentials', fakeAsync(() => {
+    const serviceInstance: RestService = new RestService(<Settings><any>mockBasicSettingsRequiresLogin, httpClient);
+    expect(() => serviceInstance.login('', '')).withContext('Logging in with basic auth').not.toThrow(new Error('Method login not allowed for basic authentication'));
+    flush();
+  }));
+
   it('should load etags from cache', () => {
     localStorage.setItem('authmod-etags', JSON.stringify({ 'foo': 'bar' }));
     const serviceInstance: RestService = new RestService(<Settings><any>mockSettings, httpClient);
@@ -283,7 +305,76 @@ describe('RestService', () => {
     expect(localStorage.getItem('authmod-etags')).withContext('Etag to be removed from localStorage').toBeNull();
   });
 
-  it('should handle login correct', fakeAsync(() => {
+  it('should handle basic login correct', fakeAsync(() => {
+    const serviceInstance: RestService = new RestService(<Settings><any>mockBasicSettingsRequiresLogin, httpClient);
+    let payload: any;
+    let sub = (<Observable<boolean | null | HttpErrorResponse>>serviceInstance.login('mock-user', 'mock-password')).subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(`mock-host/webapi/v3/currentUser`, `Called url: serviceInstance.login('mock-user', 'mock-password')`);
+    expect(request.request.method).withContext('Request method').toEqual('GET');
+    expect(request.request.body).withContext('Request body').toBeNull();
+    request.flush({}, { status: HttpStatusCode.Ok, statusText: 'Ok' });
+    tick(10);
+    let localStorageData: any = localStorage.getItem('authmod-session');
+    let sessionStorageData: any = sessionStorage.getItem('authmod-session');
+    expect(localStorageData == null).withContext('Session data set after login response in localStorage').toBeFalse();
+    expect(sessionStorageData == null).withContext('Session data not set after login response in sessionStorage').toBeTrue();
+    if (localStorageData != null) {
+      localStorageData = JSON.parse(localStorageData);
+      expect(localStorageData['username']).withContext('Session data check accessToken').toEqual('mock-user');
+      expect(localStorageData['password']).withContext('Session data check refreshToken').toEqual('mock-password');
+    }
+    expect(payload).withContext('Method to return true in subject').toBeTrue();
+    sub.unsubscribe();
+    flush();
+  }));
+
+  it('should handle basic login correct(persistent)', fakeAsync(() => {
+    const serviceInstance: RestService = new RestService(<Settings><any>mockBasicSettingsRequiresLogin, httpClient);
+    let payload: any;
+    let sub = (<Observable<boolean | null | HttpErrorResponse>>serviceInstance.login('mock-user', 'mock-password', true)).subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(`mock-host/webapi/v3/currentUser`, `Called url: serviceInstance.login('mock-user', 'mock-password')`);
+    expect(request.request.method).withContext('Request method').toEqual('GET');
+    expect(request.request.body).withContext('Request body').toBeNull();
+    request.flush({}, { status: HttpStatusCode.Ok, statusText: 'Ok' });
+    tick(10);
+    let localStorageData: any = localStorage.getItem('authmod-session');
+    let sessionStorageData: any = sessionStorage.getItem('authmod-session');
+    expect(localStorageData == null).withContext('Session data set after login response in localStorage').toBeFalse();
+    expect(sessionStorageData == null).withContext('Session data not set after login response in sessionStorage').toBeTrue();
+    if (localStorageData != null) {
+      localStorageData = JSON.parse(localStorageData);
+      expect(localStorageData['username']).withContext('Session data check accessToken').toEqual('mock-user');
+      expect(localStorageData['password']).withContext('Session data check refreshToken').toEqual('mock-password');
+    }
+    expect(payload).withContext('Method to return true in subject').toBeTrue();
+    sub.unsubscribe();
+    flush();
+  }));
+
+  it('should handle basic login correct(temporary)', fakeAsync(() => {
+    const serviceInstance: RestService = new RestService(<Settings><any>mockBasicSettingsRequiresLogin, httpClient);
+    let payload: any;
+    let sub = (<Observable<boolean | null | HttpErrorResponse>>serviceInstance.login('mock-user', 'mock-password', false)).subscribe((subject_payload) => payload = subject_payload);
+    let request = httpTestingController.expectOne(`mock-host/webapi/v3/currentUser`, `Called url: serviceInstance.login('mock-user', 'mock-password')`);
+    expect(request.request.method).withContext('Request method').toEqual('GET');
+    expect(request.request.body).withContext('Request body').toBeNull();
+    request.flush({}, { status: HttpStatusCode.Ok, statusText: 'Ok' });
+    tick(10);
+    let localStorageData: any = localStorage.getItem('authmod-session');
+    let sessionStorageData: any = sessionStorage.getItem('authmod-session');
+    expect(localStorageData == null).withContext('Session data set after login response in localStorage').toBeTrue();
+    expect(sessionStorageData == null).withContext('Session data not set after login response in sessionStorage').toBeFalse();
+    if (sessionStorageData != null) {
+      sessionStorageData = JSON.parse(sessionStorageData);
+      expect(sessionStorageData['username']).withContext('Session data check accessToken').toEqual('mock-user');
+      expect(sessionStorageData['password']).withContext('Session data check refreshToken').toEqual('mock-password');
+    }
+    expect(payload).withContext('Method to return true in subject').toBeTrue();
+    sub.unsubscribe();
+    flush();
+  }));
+
+  it('should handle OAuth login correct', fakeAsync(() => {
     const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
     let payload: any;
     let sub = (<Observable<boolean | null | HttpErrorResponse>>serviceInstance.login('mock-user', 'mock-password')).subscribe((subject_payload) => payload = subject_payload);
@@ -307,7 +398,7 @@ describe('RestService', () => {
     flush();
   }));
 
-  it('should handle login (keepLoggedin = false) correct', fakeAsync(() => {
+  it('should handle OAuth login (keepLoggedin = false) correct', fakeAsync(() => {
     const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
     let payload: any;
     let sub = (<Observable<boolean | null | HttpErrorResponse>>serviceInstance.login('mock-user', 'mock-password', false)).subscribe((subject_payload) => payload = subject_payload);
@@ -331,7 +422,7 @@ describe('RestService', () => {
     flush();
   }));
 
-  it('should handle login error correct', fakeAsync(() => {
+  it('should handle OAuth login error correct', fakeAsync(() => {
     const serviceInstance: RestService = new RestService(<Settings><any>mockOauthSettings, httpClient);
     let payload: any;
     let sub = (<Observable<boolean | null | HttpErrorResponse>>serviceInstance.login('mock-user', 'mock-password')).subscribe((subject_payload) => payload = subject_payload);

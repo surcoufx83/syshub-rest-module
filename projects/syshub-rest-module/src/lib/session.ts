@@ -70,8 +70,6 @@ export class Session implements OAuthSession {
    */
   private loadToken(): void {
     console.log('loadToken')
-    if (this.settings.useBasicAuth && this.settings.basic?.requiresLogin === false)
-      return;
     let store: Token | BasicCredentials | string | null = localStorage.getItem(this.settings.oauth?.storeKey ?? 'authmod-session');
     if (store == null) {
       store = sessionStorage.getItem(this.settings.oauth?.storeKey ?? 'authmod-session');

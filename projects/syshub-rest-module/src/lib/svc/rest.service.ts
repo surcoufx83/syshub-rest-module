@@ -1428,6 +1428,8 @@ export class RestService {
    */
   public login(username: string, password: string, keepLoggedin: boolean = true): BehaviorSubject<boolean | null | HttpErrorResponse> {
     if (this.settings.useBasicAuth) {
+      if (this.settings.basic!.requiresLogin === false)
+        throw new Error('Method login not allowed for basic authentication');
       return this.loginBasic(username, password, keepLoggedin);
     } else {
       return this.loginOauth(username, password, keepLoggedin);
@@ -1438,9 +1440,6 @@ export class RestService {
     console.log('loginBasic', username)
     this.session.setBasicToken({ username: username, password: password }, keepLoggedin);
     let subject = new BehaviorSubject<boolean | null | HttpErrorResponse>(null);
-    if (!this.settings.useBasicAuth) {
-      throw new Error('Method login not allowed for OAuth authentication')
-    }
     this.getCurrentUser(true).subscribe((user) => {
       if (user instanceof Error) {
         this.session.clearToken();
@@ -1456,9 +1455,6 @@ export class RestService {
   private loginOauth(username: string, password: string, keepLoggedin: boolean = true): BehaviorSubject<boolean | null | HttpErrorResponse> {
     const serv = this;
     let subject = new BehaviorSubject<boolean | null | HttpErrorResponse>(null);
-    if (!this.settings.useOAuth) {
-      throw new Error('Method login not allowed for basic authentication')
-    }
     let body: string = `grant_type=password&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&`
       + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
     this.httpClient.post(`${this.settings!.host}webauth/oauth/token`, body, { observe: 'response' }).subscribe({
