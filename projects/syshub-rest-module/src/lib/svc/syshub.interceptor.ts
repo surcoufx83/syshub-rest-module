@@ -11,12 +11,17 @@ export class SyshubInterceptor implements HttpInterceptor {
 
   private basictoken = '';
 
-  constructor(private settings: Settings, private restService: RestService) {
-    if (settings.useBasicAuth)
-      this.basictoken = window.btoa(`${this.settings.basic!.username}:${this.settings.basic!.password}`);
-  }
+  constructor(
+    private settings: Settings,
+    private restService: RestService
+  ) { }
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
+    if (this.settings.useBasicAuth)
+      this.basictoken = window.btoa(`${this.settings.basic!.username}:${this.settings.basic!.password}`);
+
+    console.log(this.settings)
+
     /**
      * Check 1: Endpoint for OAuth login is called
      *   Force content type application/x-www-form-urlencoded

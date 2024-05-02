@@ -22,7 +22,9 @@ export class Session implements OAuthSession {
 
   constructor(private settings: Settings) {
     // Basic Auth is handled as always logged in.
-    if (this.settings.useBasicAuth === true)
+    console.log(this.settings.useBasicAuth)
+    console.log(this.settings.basic?.requiresLogin)
+    if (this.settings.useBasicAuth === true && this.settings.basic?.requiresLogin === false)
       this.loggedin$.next(true);
     else
       this.loadToken();
@@ -32,8 +34,12 @@ export class Session implements OAuthSession {
    * Removes any old session information to handle user logout
    */
   public clearToken(): void {
-    if (this.settings.useBasicAuth === true)
+    if (this.settings.useBasicAuth && this.settings.basic?.requiresLogin === false)
       return;
+    if (this.settings.useBasicAuth) {
+      this.settings.basic!.username = '';
+      this.settings.basic!.password = '';
+    }
     this.sessiontoken = undefined;
     localStorage.removeItem(this.settings.oauth?.storeKey ?? 'authmod-session');
     sessionStorage.removeItem(this.settings.oauth?.storeKey ?? 'authmod-session');
@@ -63,16 +69,24 @@ export class Session implements OAuthSession {
    * Loads the session information from browser cache.
    */
   private loadToken(): void {
-    let store: Token | string | null = localStorage.getItem(this.settings.oauth?.storeKey ?? 'authmod-session');
+    console.log('loadToken')
+    if (this.settings.useBasicAuth && this.settings.basic?.requiresLogin === false)
+      return;
+    let store: Token | BasicCredentials | string | null = localStorage.getItem(this.settings.oauth?.storeKey ?? 'authmod-session');
     if (store == null) {
       store = sessionStorage.getItem(this.settings.oauth?.storeKey ?? 'authmod-session');
       if (store != null)
         this.storageLocation = 'SessionStorage';
     }
     if (store != null) {
-      store = <Token>(JSON.parse(<string>store));
-      store.grantTime = new Date(store.grantTime);
-      this.setToken(store, this.storageLocation == 'LocalStorage');
+      if (this.settings.useBasicAuth) {
+        store = <BasicCredentials>(JSON.parse(<string>store));
+        this.setBasicToken(store, this.storageLocation == 'LocalStorage');
+      } else {
+        store = <Token>(JSON.parse(<string>store));
+        store.grantTime = new Date(store.grantTime);
+        this.setOauthToken(store, this.storageLocation == 'LocalStorage');
+      }
     }
   }
 
@@ -96,7 +110,28 @@ export class Session implements OAuthSession {
    * @param token A Token object.
    * @param keepLoggedin A boolean which defines storage location and persistence of the session (true = localStorage = permanent, false = sessionStorag = until browser window closed)
    */
-  public setToken(token: Token, keepLoggedin?: boolean): void {
+  public setBasicToken(token: BasicCredentials, keepLoggedin?: boolean): void {
+    if (this.settings.useOAuth === true)
+      return;
+    if (keepLoggedin === undefined)
+      keepLoggedin = this.storageLocation == 'LocalStorage';
+    this.settings.basic!.username = token.username;
+    this.settings.basic!.password = token.password;
+    this.storageLocation = keepLoggedin ? 'LocalStorage' : 'SessionStorage';
+    this.refreshIsDue$.next(false);
+    if (keepLoggedin)
+      localStorage.setItem(this.settings.oauth?.storeKey ?? 'authmod-session', JSON.stringify(token));
+    else
+      sessionStorage.setItem(this.settings.oauth?.storeKey ?? 'authmod-session', JSON.stringify(token));
+    this.loggedin$.next(token.password != '' && token.username != '');
+  }
+
+  /**
+   * Assigns a new Token to the current session (will be called by Rest Service after successfull login or token refresh).
+   * @param token A Token object.
+   * @param keepLoggedin A boolean which defines storage location and persistence of the session (true = localStorage = permanent, false = sessionStorag = until browser window closed)
+   */
+  public setOauthToken(token: Token, keepLoggedin?: boolean): void {
     if (this.settings.useBasicAuth === true)
       return;
     if (keepLoggedin === undefined)
@@ -128,7 +163,13 @@ export class Session implements OAuthSession {
 export type OAuthSession = {
   isLoggedIn: Observable<boolean>;
   clearToken(): void;
-  setToken(token: Token, keepLoggedin: boolean): void;
+  setBasicToken(token: BasicCredentials, keepLoggedin?: boolean): void;
+  setOauthToken(token: Token, keepLoggedin?: boolean): void;
+}
+
+export type BasicCredentials = {
+  password: string;
+  username: string;
 }
 
 export type Token = {

@@ -1427,6 +1427,33 @@ export class RestService {
    * true on success or an HttpErrorResponse in case of any error.
    */
   public login(username: string, password: string, keepLoggedin: boolean = true): BehaviorSubject<boolean | null | HttpErrorResponse> {
+    if (this.settings.useBasicAuth) {
+      return this.loginBasic(username, password, keepLoggedin);
+    } else {
+      return this.loginOauth(username, password, keepLoggedin);
+    }
+  }
+
+  private loginBasic(username: string, password: string, keepLoggedin: boolean = true): BehaviorSubject<boolean | null | HttpErrorResponse> {
+    console.log('loginBasic', username)
+    this.session.setBasicToken({ username: username, password: password }, keepLoggedin);
+    let subject = new BehaviorSubject<boolean | null | HttpErrorResponse>(null);
+    if (!this.settings.useBasicAuth) {
+      throw new Error('Method login not allowed for OAuth authentication')
+    }
+    this.getCurrentUser(true).subscribe((user) => {
+      if (user instanceof Error) {
+        this.session.clearToken();
+        subject.next(false);
+      }
+      else
+        subject.next(true);
+      subject.complete();
+    });
+    return subject;
+  }
+
+  private loginOauth(username: string, password: string, keepLoggedin: boolean = true): BehaviorSubject<boolean | null | HttpErrorResponse> {
     const serv = this;
     let subject = new BehaviorSubject<boolean | null | HttpErrorResponse>(null);
     if (!this.settings.useOAuth) {
@@ -1446,7 +1473,7 @@ export class RestService {
             refreshToken: responseBody.refresh_token,
             username: username
           };
-          serv.session.setToken(token, keepLoggedin);
+          serv.session.setOauthToken(token, keepLoggedin);
           subject.next(true);
           subject.complete();
         }
@@ -1702,7 +1729,7 @@ export class RestService {
           refreshToken: response.refresh_token,
           username: this.session.getUsername(),
         };
-        this.session.setToken(token);
+        this.session.setOauthToken(token);
         setTimeout(() => {
           // reset refreshing flag after a few millisecs so session has enough time to update anything
           this.isRefreshing$.next(false);
