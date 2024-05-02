@@ -87,7 +87,7 @@ export const environment: MyEnvironment = {
 
 #### Example configuration - OAuth
 
-The following code is an example to setup your environment for OAuth2 authentication.
+The following code is an example to set up your environment for OAuth2 authentication.
 
 ```ts
 import { OAuthRestSettings } from "syshub-rest-module";
