@@ -61,7 +61,7 @@ export const environment: MyEnvironment = {
 
 #### Example configuration - Basic auth (user input)
 
-The following code is an example of how to set up your environment for basic authentication where the access data (user name and password) comes through the web application, e.g. through a user input. In this case, [a login must be executed](#userlogin-example) before the first request to the Rest API. The access data is then saved in the browser cache.
+The following code is an example of how to set up your environment for basic authentication where the access data (username and password) comes through the web application, e.g. through a user input. In this case, [a login must be executed](#userlogin-example) before the first request to the Rest API. The access data is then saved in the browser cache.
 
 ```ts
 import { BasicRestSettings } from "syshub-rest-module";
