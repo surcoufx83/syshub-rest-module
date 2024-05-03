@@ -106,7 +106,7 @@ export class Settings {
     private validateBasicAuth(settings: BasicRestSettings): void {
 
         // Checks for enabled basic auth
-        if (settings.basic.enabled !== true)
+        if (!settings.basic || settings.basic.enabled !== true)
             throw new Error('E4 - \'basic.enabled\' property must be set as enabled in REST API settings.');
 
         if (settings.basic.requiresLogin === true) {
