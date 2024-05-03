@@ -15,13 +15,16 @@ describe('RestService', () => {
 
   const mockSettings = {
     host: 'mock-host/',
+    useApiKeyAuth: false,
     useBasicAuth: true,
     useOAuth: false,
     basic: {
+      enabled: true,
       requiresLogin: false,
       username: 'mock-username',
       password: 'mock-password',
       provider: 'mock-provider',
+      scope: 'private+public',
     },
     options: {
       useEtags: true
@@ -30,13 +33,16 @@ describe('RestService', () => {
 
   const mockBasicSettingsRequiresLogin = {
     host: 'mock-host/',
+    useApiKeyAuth: false,
     useBasicAuth: true,
     useOAuth: false,
     basic: {
+      enabled: true,
       requiresLogin: true,
       username: '',
       password: '',
       provider: 'mock-provider',
+      scope: 'private+public',
     },
     options: {
       useEtags: true
@@ -45,6 +51,7 @@ describe('RestService', () => {
 
   const mockOauthSettings = {
     host: 'mock-host/',
+    useApiKeyAuth: false,
     useBasicAuth: false,
     useOAuth: true,
     oauth: {
@@ -60,6 +67,7 @@ describe('RestService', () => {
 
   const mockOauthSettingsPublicOnly = {
     host: 'mock-host/',
+    useApiKeyAuth: false,
     useBasicAuth: false,
     useOAuth: true,
     oauth: {
@@ -75,6 +83,7 @@ describe('RestService', () => {
 
   const mockOauthSettingsPrivateOnly = {
     host: 'mock-host/',
+    useApiKeyAuth: false,
     useBasicAuth: false,
     useOAuth: true,
     oauth: {
@@ -84,6 +93,20 @@ describe('RestService', () => {
     },
     options: {
       autoLogoutOn401: true,
+      useEtags: true
+    },
+  };
+
+  const mockApiKeySettings = {
+    host: 'mock-host/',
+    useApiKeyAuth: true,
+    useBasicAuth: false,
+    useOAuth: false,
+    apiKey: 'mock-key',
+    provider: 'mock-provider',
+    scope: 'public',
+    version: 4,
+    options: {
       useEtags: true
     },
   };
@@ -542,6 +565,52 @@ describe('RestService', () => {
       () => serviceInstance.searchPSet({ name: 'mock' }),
     ]);
     let tempsettings = <any>{ ...mockOauthSettingsPublicOnly };
+    tempsettings.throwErrors = true;
+    serviceInstance = new RestService(<Settings><any>tempsettings, httpClient);
+    expect(() => serviceInstance.getCategory('')).withContext('Should throw an error if enabled').toThrow(new MissingScopeError('private'));
+    flush();
+  }));
+
+  it('should not process any private scope method for api key authentication', fakeAsync(() => {
+    let serviceInstance = new RestService(<Settings><any>mockApiKeySettings, httpClient);
+    testMissingScopeError([
+      () => serviceInstance.createCategory(<SyshubCategory><any>{}),
+      () => serviceInstance.deleteCategory(''),
+      () => serviceInstance.deleteConfigItem(''),
+      () => serviceInstance.deletePSetItem(''),
+      () => serviceInstance.getCategories(),
+      () => serviceInstance.getCategory(''),
+      () => serviceInstance.getCategoryRefs(''),
+      () => serviceInstance.getClusterStatus(),
+      () => serviceInstance.getConfigChildren(''),
+      () => serviceInstance.getConfigItem(''),
+      () => serviceInstance.getConfigPath(''),
+      () => serviceInstance.getConnectedClients(),
+      () => serviceInstance.getCurrentUsersPermissions(),
+      () => serviceInstance.getCurrentUsersRoles(),
+      () => serviceInstance.getDevices(),
+      () => serviceInstance.getJndiDatabaseStructure(),
+      () => serviceInstance.getJndiConnectionNames(),
+      () => serviceInstance.getJobType(''),
+      () => serviceInstance.getJobTypes(),
+      () => serviceInstance.getNamedSystemsForConfigPath(''),
+      () => serviceInstance.getPermissions(),
+      () => serviceInstance.getPermissionSets(),
+      () => serviceInstance.getPsetChildren(''),
+      () => serviceInstance.getPsetItem(''),
+      () => serviceInstance.getPsetPath(''),
+      () => serviceInstance.getRoles(),
+      () => serviceInstance.getServerProperties(),
+      () => serviceInstance.getUsers(),
+      () => serviceInstance.getWorkflows({}),
+      () => serviceInstance.getWorkflowModel(''),
+      () => serviceInstance.getWorkflowReferences(''),
+      () => serviceInstance.getWorkflowStartpoints(''),
+      () => serviceInstance.getWorkflowVersions(''),
+      () => serviceInstance.searchConfig({ name: 'mock' }),
+      () => serviceInstance.searchPSet({ name: 'mock' }),
+    ]);
+    let tempsettings = <any>{ ...mockApiKeySettings };
     tempsettings.throwErrors = true;
     serviceInstance = new RestService(<Settings><any>tempsettings, httpClient);
     expect(() => serviceInstance.getCategory('')).withContext('Should throw an error if enabled').toThrow(new MissingScopeError('private'));
