@@ -1470,9 +1470,9 @@ export class RestService {
           };
           serv.session.setOauthToken(token, keepLoggedin);
           subject.next(true);
-          subject.complete();
         }
-        subject.next(false);
+        else
+          subject.next(false);
         subject.complete();
       },
       error: (e: HttpErrorResponse) => {
