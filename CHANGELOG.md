@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.0] - Unreleased
+
+### Added
+
+- The module now allows the use of basic authentication without predefined access data. In this case, the `login()` method must be executed before the first request to the Rest API.
+
+### Modified
+
+- The option of basic authentication without predefined access data means that an `Error` is no longer raised if the user name and password are both empty (`""`).
+
 ## [5.1.0] - 2024-04-24
 
 ### Added

@@ -106,35 +106,57 @@ export class Settings {
     private validateBasicAuth(settings: BasicRestSettings): void {
 
         // Checks for enabled basic auth
-        if (settings.basic.enabled !== true)
+        if (!settings.basic || settings.basic.enabled !== true)
             throw new Error('E4 - \'basic.enabled\' property must be set as enabled in REST API settings.');
 
-        // Check - Username must be set and not empty
-        if (settings.basic.username == undefined || settings.basic.username == null || settings.basic.username == '')
-            throw new Error('E5 - Missing \'basic.username\' property in REST API settings.');
+        if (settings.basic.requiresLogin === true) {
+            // Ignore username and password by overwriting it with blank strings.
+            settings.basic.username = '';
+            settings.basic.password = '';
+        }
+        else {
 
-        // Check - Password must be set and not empty
-        if (settings.basic.password == undefined || settings.basic.password == null || settings.basic.password == '')
-            throw new Error('E6 - Missing \'basic.password\' property in REST API settings.');
+            // Check - Username must be set and not empty
+            if (settings.basic.username == undefined || settings.basic.username == null)
+                throw new Error('E5 - Missing \'basic.username\' property in REST API settings.');
+
+            // Check - Password must be set and not empty
+            if (settings.basic.password == undefined || settings.basic.password == null)
+                throw new Error('E6 - Missing \'basic.password\' property in REST API settings.');
+
+            if (settings.basic.username === '' && settings.basic.password === '') {
+                // Set requiresLogin to true as username and password are empty
+                settings.basic.requiresLogin = true;
+            }
+            else if (settings.basic.username === '' || settings.basic.password === '') {
+                // Check - Username or password empty? Error
+                throw new Error('E7 - \'basic.username\' or \'basic.password\' property empty in REST API settings.');
+            }
+            else {
+                // Username and password set -> no login required
+                settings.basic.requiresLogin = false;
+            }
+
+        }
 
         // Check - Provider must be set and not empty
         if (settings.basic.provider == undefined || settings.basic.provider == null || settings.basic.provider == '')
-            throw new Error('E7 - Missing \'basic.provider\' property in REST API settings.');
+            throw new Error('E8 - Missing \'basic.provider\' property in REST API settings.');
 
     }
 
     private validateOAuth(settings: OAuthRestSettings): void {
         // Checks for enabled oauth
-        if (settings.oauth.enabled !== true)
-            throw new Error('E8 - \'basic.enabled\' property must be set as enabled in REST API settings.');
+        if (!settings.oauth || settings.oauth.enabled !== true)
+            throw new Error('E9 - \'oauth.enabled\' property must be set as enabled in REST API settings.');
 
         // Check - clientId must be set and not empty
         if (settings.oauth.clientId == undefined || settings.oauth.clientId == null || settings.oauth.clientId == '')
-            throw new Error('E9 - Missing \'oauth.clientId\' property in REST API settings.');
+            throw new Error('E10 - Missing \'oauth.clientId\' property in REST API settings.');
 
         // Check - clientSecret must be set and not empty
         if (settings.oauth.clientSecret == undefined || settings.oauth.clientSecret == null || settings.oauth.clientSecret == '')
-            throw new Error('E10 - Missing \'oauth.clientSecret\' property in REST API settings.');
+            throw new Error('E11 - Missing \'oauth.clientSecret\' property in REST API settings.');
 
         // If scope is not set use default public
         if (settings.oauth.scope == undefined || settings.oauth.scope == null)
@@ -184,6 +206,14 @@ export type BasicConnectionSettings = {
      * **basic.enabled**: Required property; Determines, whether basic authentication is enabled.
      */
     enabled: true;
+
+    /**
+     * **basic.requiresLogin**: Optional property; If this is set to true the calling application
+     * must use the login() method to define the username and password for basic authentication.
+     * **basic.username** and **basic.password** from the configuration will be ignored. The login
+     * credentials will be stored in local or session storage.
+     */
+    requiresLogin?: boolean;
 
     /**
      * **basic.username**: Configures the user for basic authentication.

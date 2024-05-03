@@ -33,9 +33,10 @@ Ensure that your configuration includes at least one element that implements eit
 Type hints (comments) are provided for each type and property, serving as documentation. You can also find these comments in the [source code](https://github.com/surcoufx83/syshub-rest-module/blob/307f58f9ca9e696e37458eba658dc8a9deea9f79/projects/syshub-rest-module/src/lib/settings.ts#L154).
 
 
-#### Example configuration - Basic auth
+#### Example configuration - Basic auth (static)
 
-The following code is an example to setup your environment for basic authentication.
+The following code is an example to set up your environment for basic authentication.
+This example uses static, predefined user-independent access data. In the scenario where the access data is entered by a user, please use the [following section](#example-configuration---basic-auth-user-input).
 
 ```ts
 import { BasicRestSettings } from "syshub-rest-module";
@@ -58,9 +59,35 @@ export const environment: MyEnvironment = {
 };
 ```
 
+#### Example configuration - Basic auth (user input)
+
+The following code is an example of how to set up your environment for basic authentication where the access data (username and password) comes through the web application, e.g. through a user input. In this case, [a login must be executed](#userlogin-example) before the first request to the Rest API. The access data is then saved in the browser cache.
+
+```ts
+import { BasicRestSettings } from "syshub-rest-module";
+
+export type MyEnvironment = {
+    syshub: BasicRestSettings
+}
+
+export const environment: MyEnvironment = {
+    syshub: {
+        host: "/",
+        basic: {
+            enabled: true,
+            requiresLogin: true,
+            username: "",
+            password: "",
+            provider: "<basic api provider>",
+        },
+        throwErrors: false
+    }
+};
+```
+
 #### Example configuration - OAuth
 
-The following code is an example to setup your environment for OAuth2 authentication.
+The following code is an example to set up your environment for OAuth2 authentication.
 
 ```ts
 import { OAuthRestSettings } from "syshub-rest-module";
