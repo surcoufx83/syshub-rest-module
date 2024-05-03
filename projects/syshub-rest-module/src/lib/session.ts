@@ -108,6 +108,9 @@ export class Session implements OAuthSession {
   public setBasicToken(token: BasicCredentials, keepLoggedin?: boolean): void {
     if (this.settings.useOAuth === true)
       return;
+    if (!token.username || !token.password) {
+      throw new Error('Username and password must not be empty.');
+    }
     if (keepLoggedin === undefined)
       keepLoggedin = this.storageLocation == 'LocalStorage';
     this.settings.basic!.username = token.username;

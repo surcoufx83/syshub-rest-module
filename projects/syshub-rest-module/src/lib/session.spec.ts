@@ -144,6 +144,13 @@ describe('Session (Basic auth with requiresLogin = true)', () => {
     expect(sessionStorage.getItem('authmod-session')).withContext('sessionstorage is cleared').toBeNull();
   }));
 
+  it('should throw an error if username or password is missing', fakeAsync(() => {
+    expect(() => sessionInstance.setBasicToken(<any>{})).withContext('username and password missing').toThrowError('Username and password must not be empty.');
+    expect(() => sessionInstance.setBasicToken(<any>{ username: 'foo' })).withContext('password missing').toThrowError('Username and password must not be empty.');
+    expect(() => sessionInstance.setBasicToken(<any>{ password: 'foo' })).withContext('username missing').toThrowError('Username and password must not be empty.');
+    expect(() => sessionInstance.setBasicToken(<any>{ username: 'foo', password: 'foo' })).withContext('username missing').not.toThrowError();
+  }));
+
   it('should ignore setOauthToken', fakeAsync(() => {
     expect(isLoggedInResult).withContext('isLoggedIn false befor test').toBeFalse();
     sessionInstance.setOauthToken(<any>{}, true);
