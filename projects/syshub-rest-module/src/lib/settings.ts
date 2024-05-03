@@ -147,8 +147,8 @@ export class Settings {
 
     private validateOAuth(settings: OAuthRestSettings): void {
         // Checks for enabled oauth
-        if (settings.oauth.enabled !== true)
-            throw new Error('E9 - \'basic.enabled\' property must be set as enabled in REST API settings.');
+        if (!settings.oauth || settings.oauth.enabled !== true)
+            throw new Error('E9 - \'oauth.enabled\' property must be set as enabled in REST API settings.');
 
         // Check - clientId must be set and not empty
         if (settings.oauth.clientId == undefined || settings.oauth.clientId == null || settings.oauth.clientId == '')
