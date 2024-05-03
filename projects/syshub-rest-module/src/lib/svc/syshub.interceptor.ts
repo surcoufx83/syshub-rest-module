@@ -17,6 +17,7 @@ export class SyshubInterceptor implements HttpInterceptor {
   ) { }
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
+
     if (this.settings.useBasicAuth)
       this.basictoken = window.btoa(`${this.settings.basic!.username}:${this.settings.basic!.password}`);
 
@@ -68,6 +69,21 @@ export class SyshubInterceptor implements HttpInterceptor {
     }
 
     /**
+     * Check 5: API Key auth is enabled
+     *   Set API Key header and provider
+     *   Content type is set to json if not yet defined
+     */
+    if (this.settings.useApiKeyAuth) {
+      const clonedRequest = request.clone({
+        headers: request.headers
+          .set('X-API-KEY', this.settings.apikey!)
+          .set('AuthProvider', this.settings.apiprovider!)
+          .set('Content-Type', 'application/json')
+      });
+      return next.handle(clonedRequest);
+    }
+
+    /**
      * Anything else: Send request as already configured
      *   Set Content type to json
      */
@@ -102,6 +118,20 @@ export class SyshubInterceptor implements HttpInterceptor {
         headers: request.headers
           .set('Authorization', 'Basic ' + this.basictoken)
           .set('AuthProvider', this.settings.basic!.provider)
+      });
+      return next.handle(clonedRequest);
+    }
+
+    /**
+     * Check 5: API Key auth is enabled
+     *   Set API Key header and provider
+     *   Content type is set to json if not yet defined
+     */
+    if (this.settings.useApiKeyAuth) {
+      const clonedRequest = request.clone({
+        headers: request.headers
+          .set('X-API-KEY', this.settings.apikey!)
+          .set('AuthProvider', this.settings.apiprovider!)
       });
       return next.handle(clonedRequest);
     }

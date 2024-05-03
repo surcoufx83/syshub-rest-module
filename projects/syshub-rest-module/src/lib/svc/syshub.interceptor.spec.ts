@@ -7,9 +7,9 @@ import { fakeAsync, flush, tick } from '@angular/core/testing';
 
 describe('SyshubInterceptor', () => {
 
-
   let mockSettings = {
     host: 'mock-host/',
+    useApiKeyAuth: false,
     useBasicAuth: true,
     useOAuth: false,
     basic: {
@@ -21,6 +21,7 @@ describe('SyshubInterceptor', () => {
 
   let mockOauthSettings = {
     host: 'mock-host/',
+    useApiKeyAuth: false,
     useBasicAuth: false,
     useOAuth: true,
     oauth: {
@@ -31,6 +32,15 @@ describe('SyshubInterceptor', () => {
     options: {
       autoLogoutOn401: true,
     },
+  };
+
+  let mockApikeySettings = {
+    host: 'mock-host/',
+    useApiKeyAuth: true,
+    useBasicAuth: false,
+    useOAuth: false,
+    apikey: 'mock-apikey',
+    apiprovider: 'mock-apiprovider',
   };
 
   let mockRestServiceLoggedIn = {
@@ -183,6 +193,47 @@ describe('SyshubInterceptor', () => {
       expect(response.headers.getAll('Authorization')).withContext('Check applied Authorization header').toEqual([`Basic ${btoa(`${mockSettings.basic.username}:${mockSettings.basic.password}`)}`]);
       expect(response.headers.getAll('AuthProvider')).withContext('Check applied AuthProvider header').toEqual([mockSettings.basic.provider]);
       expect(response.headers.getAll('Content-Type')).withContext('Check applied Content-Type header').toEqual(['application/json']);
+    });
+    tick();
+    sub?.unsubscribe();
+    flush();
+  }));
+
+  it('should intercept API key requests', fakeAsync(() => {
+    const interceptorInstance: SyshubInterceptor = new SyshubInterceptor(<Settings><any>mockApikeySettings, <RestService><any>mockRestServiceLoggedIn);
+    const mockRequest = new HttpRequest('POST', '/mock-server/mock-formdata', {});
+    const mockHandler = {
+      handle: (req: HttpRequest<any>): Observable<HttpEvent<any>> => of(new HttpResponse(req))
+    };
+
+    let sub = interceptorInstance.intercept(mockRequest, mockHandler).subscribe((res) => {
+      const response = <HttpResponse<any>>res;
+      expect(mockRestServiceLoggedOut.getAccessToken).withContext('Check interceptor has requested access token').toHaveBeenCalledTimes(0);
+      expect(response.url).withContext('Check url').toEqual('/mock-server/mock-formdata');
+      expect(response.headers.getAll('Authorization')).withContext('Check applied Authorization header').toBeNull();
+      expect(response.headers.getAll('X-API-KEY')).withContext('Check applied X-API-KEY header').toEqual([mockApikeySettings.apikey]);
+      expect(response.headers.getAll('AuthProvider')).withContext('Check applied AuthProvider header').toEqual([mockApikeySettings.apiprovider]);
+      expect(response.headers.getAll('Content-Type')).withContext('Check applied Content-Type header').toEqual(['application/json']);
+    });
+    tick();
+    sub?.unsubscribe();
+    flush();
+  }));
+
+  it('should intercept API key form data requests', fakeAsync(() => {
+    const interceptorInstance: SyshubInterceptor = new SyshubInterceptor(<Settings><any>mockApikeySettings, <RestService><any>mockRestServiceLoggedIn);
+    const mockRequest = new HttpRequest('POST', '/mock-server/mock-formdata', new FormData());
+    const mockHandler = {
+      handle: (req: HttpRequest<any>): Observable<HttpEvent<any>> => of(new HttpResponse(req))
+    };
+
+    let sub = interceptorInstance.intercept(mockRequest, mockHandler).subscribe((res) => {
+      const response = <HttpResponse<any>>res;
+      expect(mockRestServiceLoggedOut.getAccessToken).withContext('Check interceptor has requested access token').toHaveBeenCalledTimes(0);
+      expect(response.url).withContext('Check url').toEqual('/mock-server/mock-formdata');
+      expect(response.headers.getAll('Authorization')).withContext('Check applied Authorization header').toBeNull();
+      expect(response.headers.getAll('X-API-KEY')).withContext('Check applied X-API-KEY header').toEqual([mockApikeySettings.apikey]);
+      expect(response.headers.getAll('AuthProvider')).withContext('Check applied AuthProvider header').toEqual([mockApikeySettings.apiprovider]);
     });
     tick();
     sub?.unsubscribe();

@@ -1,20 +1,28 @@
 
 export class Settings {
 
-    private isbasic: boolean = true;
+    private authtype?: 'ApiKey' | 'Basic' | 'OAuth';
     private valid$: boolean = false;
 
-    constructor(private settings: BasicRestSettings | OAuthRestSettings) {
+    constructor(private settings: ApikeyRestSettings | BasicRestSettings | OAuthRestSettings) {
         this.validate();
         this.valid$ = true;
     }
 
-    public get any(): BasicRestSettings | OAuthRestSettings {
+    public get any(): ApikeyRestSettings | BasicRestSettings | OAuthRestSettings {
         return this.settings;
     }
 
+    public get apikey(): string | null {
+        return this.authtype == 'ApiKey' ? (<ApikeyRestSettings>this.settings).apiKey : null;
+    }
+
+    public get apiprovider(): string | null {
+        return this.authtype == 'ApiKey' ? (<ApikeyRestSettings>this.settings).provider : null;
+    }
+
     public get basic(): BasicConnectionSettings | null {
-        return this.isbasic ? (<BasicRestSettings>this.settings).basic : null;
+        return this.authtype == 'Basic' ? (<BasicRestSettings>this.settings).basic : null;
     }
 
     public get host(): string {
@@ -22,7 +30,7 @@ export class Settings {
     }
 
     public get oauth(): OAuthConnectionSettings | null {
-        return !this.isbasic ? (<OAuthRestSettings>this.settings).oauth : null;
+        return this.authtype == 'OAuth' ? (<OAuthRestSettings>this.settings).oauth : null;
     }
 
     public get options(): RestOptionsSettings {
@@ -33,12 +41,16 @@ export class Settings {
         return this.settings.throwErrors!;
     }
 
+    public get useApiKeyAuth(): boolean {
+        return this.authtype == 'ApiKey';
+    }
+
     public get useBasicAuth(): boolean {
-        return this.isbasic;
+        return this.authtype == 'Basic';
     }
 
     public get useOAuth(): boolean {
-        return !this.isbasic;
+        return this.authtype == 'OAuth';
     }
 
     public get valid(): boolean {
@@ -55,10 +67,13 @@ export class Settings {
             throw new Error('E1 - Provided settings for REST API module are undefined or null.');
 
         // Check that either basic or oauth exists
-        if (!Object.keys(this.settings).includes('basic') && !Object.keys(this.settings).includes('oauth'))
-            throw new Error('E2 - Missing \'basic\' or \'oauth\' property in REST API settings.');
+        if (!Object.keys(this.settings).includes('basic') && !Object.keys(this.settings).includes('oauth') && !Object.keys(this.settings).includes('apiKey'))
+            throw new Error('E2 - Missing \'basic\', \'oauth\' or \'apiKey\' property in REST API settings.');
 
-        this.isbasic = Object.keys(this.settings).includes('basic');
+        this.authtype =
+            Object.keys(this.settings).includes('basic') ? 'Basic' :
+                Object.keys(this.settings).includes('oauth') ? 'OAuth' :
+                    'ApiKey';
 
         // Check 2 - sysHUB host must never be empty or undefined
         if (this.settings.host == undefined || this.settings.host == null || this.settings.host == '')
@@ -76,11 +91,14 @@ export class Settings {
         if (this.settings.version == SyshubVersion.sysHUB_2021)
             this.settings.host = `${this.settings.host}cosmos-`;
 
-        if (this.isbasic)
+        if (this.authtype === 'Basic')
             this.validateBasicAuth(<BasicRestSettings>this.settings);
 
-        else
+        else if (this.authtype === 'OAuth')
             this.validateOAuth(<OAuthRestSettings>this.settings);
+
+        else
+            this.validateApikeyAuth(<ApikeyRestSettings>this.settings);
 
         // Create default options if not set
         if (this.settings.options == undefined)
@@ -101,6 +119,25 @@ export class Settings {
         // Default throwErrors = false if not set
         if (this.settings.throwErrors == undefined)
             this.settings.throwErrors = false;
+    }
+
+    private validateApikeyAuth(settings: ApikeyRestSettings): void {
+
+        // Check API Key not empty
+        if (!settings.apiKey || settings.apiKey == '')
+            throw new Error('E12 - \'apiKey\' property must not be empty.');
+
+        // Check auth provider not empty
+        if (!settings.provider || settings.provider == '')
+            throw new Error('E13 - \'provider\' property must not be empty when using API key authentication.');
+
+        // Force scope = public
+        settings.scope = 'public';
+
+        // As API key auth is available before 2024 it will throw an error if an earlier version is defined
+        if (!settings.version || settings.version < SyshubVersion.sysHUB_2024)
+            throw new Error('E14 - API key authentication must not be used before sysHUB Server 2024. If server version is correct, make sure to add it as `version = 4` to the config/environment file.');
+
     }
 
     private validateBasicAuth(settings: BasicRestSettings): void {
@@ -143,6 +180,10 @@ export class Settings {
         if (settings.basic.provider == undefined || settings.basic.provider == null || settings.basic.provider == '')
             throw new Error('E8 - Missing \'basic.provider\' property in REST API settings.');
 
+        // Set default public scope
+        if (!settings.basic.scope)
+            settings.basic.scope = 'public';
+
     }
 
     private validateOAuth(settings: OAuthRestSettings): void {
@@ -168,6 +209,54 @@ export class Settings {
     }
 
 }
+
+/**
+ * Configuration interface for the sysHUB Rest API Service using basic authentication.
+ */
+export type ApikeyRestSettings = {
+    /**
+     * **host**: Required property; Must contain a valid url to the sysHUB server and may contain a custom port.
+     * Example: `/` or `http://localhost:8088/`
+     */
+    host: string;
+
+    /**
+     * **version**: Optional property; Used to configure your sysHUB Server version to handle breaking changes of REST API.
+     * The default value is 2022 and newer.
+     */
+    version?: SyshubVersion;
+
+    /**
+     * **apiKey**: Configures the API key for authentication using API keys. Make sure to configure one 
+     * in the API-Server / API-Key mapping form of the webclient. You must set a mapped user and also referer 
+     * (e.g. `http://localhost;https://localhost`). Make sure to also copy the name of the Api key into a new
+     * authentication provider.
+     */
+    apiKey: string;
+
+    /**
+     * **provider**: Configures the API Server provider for authentication using API keys. Make sure to configure one 
+     * in the API-Server / Authentication Provider form of the webclient. The scope must be set to public as private is not
+     * allowed. Add the API Key name in the field API-Key Authentication.
+     */
+    provider: string;
+
+    /**
+     * **options**: Optional property; Used to configure more options for the Rest Service.
+     */
+    options?: RestOptionsSettings;
+
+    /**
+     * **oauth.scope**: Optional property; Configures the auth server scope and must match the settings in sysHub.
+     * In case of API key authentication, *public* is the only valid option.
+     */
+    scope?: 'public';
+
+    /**
+     * **throwErrors**: Optional property, default false; If true the connector will throw exceptions when user is not loggedin or wrong scope is configured. If false the call will be send to the Rest API and sysHUB will reply with an error.
+     */
+    throwErrors?: boolean;
+};
 
 /**
  * Configuration interface for the sysHUB Rest API Service using basic authentication.
@@ -199,7 +288,7 @@ export type BasicRestSettings = {
      * **throwErrors**: Optional property, default false; If true the connector will throw exceptions when user is not loggedin or wrong scope is configured. If false the call will be send to the Rest API and sysHUB will reply with an error.
      */
     throwErrors?: boolean;
-}
+};
 
 export type BasicConnectionSettings = {
     /**
@@ -229,6 +318,12 @@ export type BasicConnectionSettings = {
      * **basic.provider**: Configures the API Server provider for basic authentication.
      */
     provider: string;
+
+    /**
+     * **basic.scope**: Optional property; Configures the auth server scope and must match the settings in sysHub.
+     * Allowed values: *private*, *public*, *private+public* or *public+private*, Default: *public*
+     */
+    scope?: 'private' | 'public' | 'private+public' | 'public+private';
 };
 
 /**
@@ -261,7 +356,7 @@ export type OAuthRestSettings = {
      * **throwErrors**: Optional property, default false; If true the connector will throw exceptions when user is not loggedin or wrong scope is configured. If false the call will be send to the Rest API and sysHUB will reply with an error.
      */
     throwErrors?: boolean;
-}
+};
 
 export type OAuthConnectionSettings = {
     /**
@@ -315,7 +410,7 @@ export type RestOptionsSettings = {
      * Default: *true*
      */
     useEtags?: boolean;
-}
+};
 
 /**
  * Enumeration to differentiate sysHUB Server version. As there have been breaking changes in the sysHUB REST API
@@ -327,4 +422,4 @@ export enum SyshubVersion {
     sysHUB_2023 = 3,
     sysHUB_2024 = 4,
     DEFAULT = sysHUB_2023,
-}
+};

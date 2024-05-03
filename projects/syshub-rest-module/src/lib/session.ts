@@ -6,6 +6,14 @@ export class Session implements OAuthSession {
   // reference to the token information
   private sessiontoken?: Token;
 
+  /**
+   * If set as true, no authentication required.
+   * This is determined in the constructor and will be true for:
+   * a) API-Key authentication
+   * b) Basic authentication with hard-coded credentials in settings
+   */
+  private skipAuth: boolean;
+
   // track the current login state and make it public readable
   private loggedin$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   public isLoggedIn = this.loggedin$.asObservable();
@@ -21,8 +29,8 @@ export class Session implements OAuthSession {
   public token = this.token$.asObservable();
 
   constructor(private settings: Settings) {
-    // Basic Auth is handled as always logged in.
-    if (this.settings.useBasicAuth === true && this.settings.basic?.requiresLogin === false)
+    this.skipAuth = (this.settings.useApiKeyAuth || (this.settings.useBasicAuth === true && this.settings.basic?.requiresLogin === false));
+    if (this.skipAuth)
       this.loggedin$.next(true);
     else
       this.loadToken();
@@ -32,7 +40,7 @@ export class Session implements OAuthSession {
    * Removes any old session information to handle user logout
    */
   public clearToken(): void {
-    if (this.settings.useBasicAuth && this.settings.basic?.requiresLogin === false)
+    if (this.skipAuth)
       return;
     if (this.settings.useBasicAuth) {
       this.settings.basic!.username = '';
@@ -106,7 +114,7 @@ export class Session implements OAuthSession {
    * @param keepLoggedin A boolean which defines storage location and persistence of the session (true = localStorage = permanent, false = sessionStorag = until browser window closed)
    */
   public setBasicToken(token: BasicCredentials, keepLoggedin?: boolean): void {
-    if (this.settings.useOAuth === true)
+    if (!this.settings.useBasicAuth)
       return;
     if (!token.username || !token.password) {
       throw new Error('Username and password must not be empty.');
@@ -130,7 +138,7 @@ export class Session implements OAuthSession {
    * @param keepLoggedin A boolean which defines storage location and persistence of the session (true = localStorage = permanent, false = sessionStorag = until browser window closed)
    */
   public setOauthToken(token: Token, keepLoggedin?: boolean): void {
-    if (this.settings.useBasicAuth === true)
+    if (!this.settings.useOAuth)
       return;
     if (keepLoggedin === undefined)
       keepLoggedin = this.storageLocation == 'LocalStorage';

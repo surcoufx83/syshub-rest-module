@@ -1362,7 +1362,7 @@ export class RestService {
       subject.next(HttpStatusCode.NotModified);
       return true;
     }
-    subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(200, response));
+    subject.next(response.status == HttpStatusCode.Unauthorized ? new UnauthorizedError() : response.status == 0 ? new NetworkError() : new StatusNotExpectedError(ifNotStatus, response));
     return true;
   }
 
@@ -1410,12 +1410,16 @@ export class RestService {
 
   /** Returns whether the internal Rest API endpoints are allowed. */
   private get isInternalRestApiAllowed(): boolean {
-    return this.settings.useBasicAuth || (this.settings.oauth!.scope !== undefined && this.settings.oauth!.scope.indexOf('private') > -1);
+    return !this.settings.useApiKeyAuth &&
+      ((this.settings.useBasicAuth && this.settings.basic != null && this.settings.basic.scope!.indexOf('private') > -1) ||
+        (this.settings.useOAuth && this.settings.oauth != null && this.settings.oauth.scope!.indexOf('private') > -1));
   }
 
   /** Returns whether the public Rest API endpoints are allowed. */
   private get isPublicRestApiAllowed(): boolean {
-    return this.settings.useBasicAuth || (this.settings.oauth!.scope !== undefined && this.settings.oauth!.scope.indexOf('public') > -1);
+    return this.settings.useApiKeyAuth ||
+      (this.settings.useBasicAuth && this.settings.basic != null && this.settings.basic.scope!.indexOf('public') > -1) ||
+      (this.settings.useOAuth && this.settings.oauth != null && this.settings.oauth.scope!.indexOf('public') > -1);
   }
 
   /**
