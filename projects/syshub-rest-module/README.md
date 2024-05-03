@@ -3,11 +3,11 @@
 
 # Syshub Rest Module
 
-The **syshub-rest-module** is designed to facilitate communication between an Angular single-page application (SPA) and an NT-Ware uniFLOW sysHUB server. It leverages the sysHUB server's REST interface, which supports OAuth2 authentication and, optionally, basic authentication.
+The **syshub-rest-module** was developed to simplify communication between an Angular single-page application (SPA) and an NT-Ware uniFLOW sysHUB server. It provides easy access to the REST interface of the sysHUB server, taking into account the available authentication mechanisms OAuth2, Basic and API Keys.
 
-This module includes a *RestService* that provides generic methods for HTTP operations, including GET, POST, DELETE, PATCH, and PUT. It also offers type-safe methods, such as `getCurrentUser()`, to enhance usability. Once a user successfully logs in using OAuth, the module automatically handles the renewal of the session token shortly before its expiration.
+The module consists of four main components, of which the *RestService* is the class with which the SPA interacts the most. The service provides methods for login to and logout from the server, as well as methods for communicating with the Rest API. Inconspicuous further components are the *Settings* class, which validates the configuration provided by the SPA; the *Session* class, which takes care of storing and renewing the OAuth tokens; the *Interceptor*, which adds the correct and required HTTP headers to a request depending on the selected authentication and the data sent to the server.
 
-To integrate the module into your Angular application, follow the installation instructions provided below.
+The following sections describe the initial installation in an Angular app, the use of the login and logout functionality and the call of the Rest API methods.
 
 ## Install
 
@@ -30,7 +30,7 @@ After installing the module, you need to set up your credentials. This is typica
 
 Ensure that your configuration includes at least one element that implements either the `BasicRestSettings` or `OAuthRestSettings` type. These types specify the requirements for establishing a connection to a sysHUB Server.
 
-Type hints (comments) are provided for each type and property, serving as documentation. You can also find these comments in the [source code](https://github.com/surcoufx83/syshub-rest-module/blob/307f58f9ca9e696e37458eba658dc8a9deea9f79/projects/syshub-rest-module/src/lib/settings.ts#L154).
+Type hints (comments) are provided for each type and property, serving as documentation. You can also find these comments in the [source code](https://github.com/surcoufx83/syshub-rest-module/blob/main/projects/syshub-rest-module/src/lib/settings.ts#L175).
 
 
 #### Example configuration - Basic auth (static)
@@ -87,7 +87,7 @@ export const environment: MyEnvironment = {
 
 #### Example configuration - OAuth
 
-The following code is an example to set up your environment for OAuth2 authentication.
+The following code is an example of how to set up your environment for OAuth2 authentication. In order for an endpoint of the Rest API to be retrieved, a login must first take place or a valid session must exist in the browser. See the following sections [User login example](#userlogin-example) and [Check login state before sending request](#check-login-state-before-sending-request).
 
 ```ts
 import { OAuthRestSettings } from "syshub-rest-module";
@@ -105,6 +105,29 @@ export const environment: MyEnvironment = {
             clientSecret: "<oauth client secret>",
             scope: "public"
         },
+        throwErrors: false
+    }
+};
+```
+
+#### Example configuration - API key
+
+With the following configuration, it is possible to use the API keys from version 2024 of the sysHUB Server. In this case, no login is possible or permitted and calls to the Rest API only allow the public scope (according to the sysHUB documentation).
+
+```ts
+import { ApikeyRestSettings, SyshubVersion } from "syshub-rest-module";
+
+export type MyEnvironment = {
+    syshub: ApikeyRestSettings
+}
+
+export const environment: MyEnvironment = {
+    syshub: {
+        host: "/",
+        apiKey: "<your api key here>",
+        provider: "<your auth provider name here>",
+        scope: "public",
+        version: SyshubVersion.sysHUB_2024,
         throwErrors: false
     }
 };
