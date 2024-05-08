@@ -3,7 +3,7 @@
 
 # Syshub Rest Module
 
-The **syshub-rest-module** was developed to simplify communication between an Angular single-page application (SPA) and an NT-Ware uniFLOW sysHUB server. It provides easy access to the REST interface of the sysHUB server, taking into account the available authentication mechanisms OAuth2, Basic and API Keys.
+The **syshub-rest-module** was developed to simplify communication between an Angular single-page application (SPA) and an NT-Ware uniFLOW sysHUB server. It provides easy access to the REST interface of the sysHUB server, supporting OAuth2, Basic, and API Key authentication mechanisms.
 
 The module consists of four main components, of which the *RestService* is the class with which the SPA interacts the most. The service provides methods for login to and logout from the server, as well as methods for communicating with the Rest API. Inconspicuous further components are the *Settings* class, which validates the configuration provided by the SPA; the *Session* class, which takes care of storing and renewing the OAuth tokens; the *Interceptor*, which adds the correct and required HTTP headers to a request depending on the selected authentication and the data sent to the server.
 
