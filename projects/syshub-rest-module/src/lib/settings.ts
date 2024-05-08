@@ -3,6 +3,7 @@ export class Settings {
 
     private authtype?: 'ApiKey' | 'Basic' | 'OAuth';
     private valid$: boolean = false;
+    private validScopes: string[] = [];
 
     constructor(private settings: ApikeyRestSettings | BasicRestSettings | OAuthRestSettings) {
         this.validate();
@@ -23,6 +24,15 @@ export class Settings {
 
     public get basic(): BasicConnectionSettings | null {
         return this.authtype == 'Basic' ? (<BasicRestSettings>this.settings).basic : null;
+    }
+
+    /**
+     * Tests whether the authentication setting allows `private` or `public` scope requests.
+     * @param scope The scope required, either `public` or `private`
+     * @returns true|false whether access is allowed.
+     */
+    public hasValidScope(scope: 'public' | 'private'): boolean {
+        return this.validScopes.includes(scope);
     }
 
     public get host(): string {
@@ -138,6 +148,8 @@ export class Settings {
         if (!settings.version || settings.version < SyshubVersion.sysHUB_2024)
             throw new Error('E14 - API key authentication must not be used before sysHUB Server 2024. If server version is correct, make sure to add it as `version = 4` to the config/environment file.');
 
+        this.validScopes = ['public'];
+
     }
 
     private validateBasicAuth(settings: BasicRestSettings): void {
@@ -184,6 +196,8 @@ export class Settings {
         if (!settings.basic.scope)
             settings.basic.scope = 'public';
 
+        this.validScopes = settings.basic.scope.split('+');
+
     }
 
     private validateOAuth(settings: OAuthRestSettings): void {
@@ -206,6 +220,8 @@ export class Settings {
         // If storeKey is not set use default value
         if (settings.oauth.storeKey == undefined || settings.oauth.storeKey == null)
             settings.oauth.storeKey = 'authmod-session';
+
+        this.validScopes = settings.oauth.scope.split('+');
     }
 
 }
