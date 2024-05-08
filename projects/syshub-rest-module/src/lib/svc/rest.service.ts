@@ -1367,6 +1367,20 @@ export class RestService {
   }
 
   /**
+   * Tests whether the authentication setting allows `private` or `public` scope requests.
+   * @param scope The scope required, either `public` or `private`
+   * @returns true|false whether access is allowed.
+   */
+  private hasValidScope(scope: 'public' | 'private'): boolean {
+    if (this.settings.useApiKeyAuth)
+      return scope == 'public'
+    return (
+      (this.settings.useBasicAuth && this.settings.basic != null && this.settings.basic.scope!.indexOf(scope) > -1) ||
+      (this.settings.useOAuth && this.settings.oauth != null && this.settings.oauth.scope!.indexOf(scope) > -1)
+    );
+  }
+
+  /**
    * Use this method to an endpoint via HTTP HEAD.
    * @param endpoint The Rest API endpoint that follows after *webapi/v3/* and must not include this.
    * @returns An observable object which receives the raw http response of error.
@@ -1410,16 +1424,12 @@ export class RestService {
 
   /** Returns whether the internal Rest API endpoints are allowed. */
   private get isInternalRestApiAllowed(): boolean {
-    return !this.settings.useApiKeyAuth &&
-      ((this.settings.useBasicAuth && this.settings.basic != null && this.settings.basic.scope!.indexOf('private') > -1) ||
-        (this.settings.useOAuth && this.settings.oauth != null && this.settings.oauth.scope!.indexOf('private') > -1));
+    return this.hasValidScope('private');
   }
 
   /** Returns whether the public Rest API endpoints are allowed. */
   private get isPublicRestApiAllowed(): boolean {
-    return this.settings.useApiKeyAuth ||
-      (this.settings.useBasicAuth && this.settings.basic != null && this.settings.basic.scope!.indexOf('public') > -1) ||
-      (this.settings.useOAuth && this.settings.oauth != null && this.settings.oauth.scope!.indexOf('public') > -1);
+    return this.hasValidScope('public');
   }
 
   /**
