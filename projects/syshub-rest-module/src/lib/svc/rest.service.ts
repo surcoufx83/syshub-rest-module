@@ -1410,16 +1410,12 @@ export class RestService {
 
   /** Returns whether the internal Rest API endpoints are allowed. */
   private get isInternalRestApiAllowed(): boolean {
-    return !this.settings.useApiKeyAuth &&
-      ((this.settings.useBasicAuth && this.settings.basic != null && this.settings.basic.scope!.indexOf('private') > -1) ||
-        (this.settings.useOAuth && this.settings.oauth != null && this.settings.oauth.scope!.indexOf('private') > -1));
+    return this.settings.hasValidScope('private');
   }
 
   /** Returns whether the public Rest API endpoints are allowed. */
   private get isPublicRestApiAllowed(): boolean {
-    return this.settings.useApiKeyAuth ||
-      (this.settings.useBasicAuth && this.settings.basic != null && this.settings.basic.scope!.indexOf('public') > -1) ||
-      (this.settings.useOAuth && this.settings.oauth != null && this.settings.oauth.scope!.indexOf('public') > -1);
+    return this.settings.hasValidScope('public');
   }
 
   /**

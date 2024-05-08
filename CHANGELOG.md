@@ -9,13 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- The module now allows the use of basic authentication without predefined access data. In this case, the `login()` method must be executed before the first request to the Rest API ([#15](https://github.com/surcoufx83/syshub-rest-module/issues/15)).
+- The module now allows the use of basic authentication without predefined access data. In this case, the `login()` method must be executed before making the first request to the Rest API ([#15](https://github.com/surcoufx83/syshub-rest-module/issues/15)).
 - It is now possible to use the sysHUB 2024 API keys to communicate with the Rest API ([#19](https://github.com/surcoufx83/syshub-rest-module/issues/19)).
 
 ### Modified
 
 - The option of basic authentication without predefined access data means that an `Error` is no longer raised if the user name and password are both empty (`""`).
 - With basic authentication, the scope is now also checked in the Rest module, even if it is ignored by the sysHUB Rest API ([#21](https://github.com/surcoufx83/syshub-rest-module/issues/21)).
+- Improved scope check ([#23](https://github.com/surcoufx83/syshub-rest-module/issues/23))
 
 ## [5.1.0] - 2024-04-24
 
