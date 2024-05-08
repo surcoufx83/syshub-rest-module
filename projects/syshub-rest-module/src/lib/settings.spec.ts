@@ -265,4 +265,56 @@ describe('Settings', () => {
     expect(settingsInstance.any).withContext('settings property').toEqual(validateObj);
   });
 
+  it('should assign correct scope (Basic)', () => {
+    let tempsettings = { ...mockBasic };
+    tempsettings.basic.scope = undefined;
+    let settingsInstance = new Settings(tempsettings);
+    expect(settingsInstance.hasValidScope('public')).withContext('public scope').toBeTrue();
+    expect(settingsInstance.hasValidScope('private')).withContext('private scope').toBeFalse();
+    tempsettings.basic.scope = 'private';
+    settingsInstance = new Settings(tempsettings);
+    expect(settingsInstance.hasValidScope('public')).withContext('public scope').toBeFalse();
+    expect(settingsInstance.hasValidScope('private')).withContext('private scope').toBeTrue();
+    tempsettings.basic.scope = 'private+public';
+    settingsInstance = new Settings(tempsettings);
+    expect(settingsInstance.hasValidScope('public')).withContext('public scope').toBeTrue();
+    expect(settingsInstance.hasValidScope('private')).withContext('private scope').toBeTrue();
+    tempsettings.basic.scope = 'public+private';
+    settingsInstance = new Settings(tempsettings);
+    expect(settingsInstance.hasValidScope('public')).withContext('public scope').toBeTrue();
+    expect(settingsInstance.hasValidScope('private')).withContext('private scope').toBeTrue();
+  });
+
+  it('should assign correct scope (API Key)', () => {
+    let tempsettings = { ...mockApikey };
+    tempsettings.scope = undefined;
+    let settingsInstance = new Settings(tempsettings);
+    expect(settingsInstance.hasValidScope('public')).withContext('public scope').toBeTrue();
+    expect(settingsInstance.hasValidScope('private')).withContext('private scope').toBeFalse();
+    tempsettings.scope = 'public';
+    settingsInstance = new Settings(tempsettings);
+    expect(settingsInstance.hasValidScope('public')).withContext('public scope').toBeTrue();
+    expect(settingsInstance.hasValidScope('private')).withContext('private scope').toBeFalse();
+  });
+
+  it('should assign correct scope (OAuth)', () => {
+    let tempsettings = { ...mockOAuth };
+    tempsettings.oauth.scope = undefined;
+    let settingsInstance = new Settings(tempsettings);
+    expect(settingsInstance.hasValidScope('public')).withContext('public scope').toBeTrue();
+    expect(settingsInstance.hasValidScope('private')).withContext('private scope').toBeFalse();
+    tempsettings.oauth.scope = 'private';
+    settingsInstance = new Settings(tempsettings);
+    expect(settingsInstance.hasValidScope('public')).withContext('public scope').toBeFalse();
+    expect(settingsInstance.hasValidScope('private')).withContext('private scope').toBeTrue();
+    tempsettings.oauth.scope = 'private+public';
+    settingsInstance = new Settings(tempsettings);
+    expect(settingsInstance.hasValidScope('public')).withContext('public scope').toBeTrue();
+    expect(settingsInstance.hasValidScope('private')).withContext('private scope').toBeTrue();
+    tempsettings.oauth.scope = 'public+private';
+    settingsInstance = new Settings(tempsettings);
+    expect(settingsInstance.hasValidScope('public')).withContext('public scope').toBeTrue();
+    expect(settingsInstance.hasValidScope('private')).withContext('private scope').toBeTrue();
+  });
+
 });

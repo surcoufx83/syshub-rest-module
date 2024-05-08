@@ -29,6 +29,7 @@ describe('RestService', () => {
     options: {
       useEtags: true
     },
+    hasValidScope: function () { return true; }
   };
 
   const mockBasicSettingsRequiresLogin = {
@@ -47,6 +48,7 @@ describe('RestService', () => {
     options: {
       useEtags: true
     },
+    hasValidScope: function () { return true; }
   };
 
   const mockOauthSettings = {
@@ -63,6 +65,7 @@ describe('RestService', () => {
       autoLogoutOn401: true,
       useEtags: true
     },
+    hasValidScope: function (scope: 'private' | 'public') { return true; }
   };
 
   const mockOauthSettingsPublicOnly = {
@@ -79,6 +82,7 @@ describe('RestService', () => {
       autoLogoutOn401: true,
       useEtags: true
     },
+    hasValidScope: function (scope: 'private' | 'public') { return scope == 'public'; }
   };
 
   const mockOauthSettingsPrivateOnly = {
@@ -95,6 +99,7 @@ describe('RestService', () => {
       autoLogoutOn401: true,
       useEtags: true
     },
+    hasValidScope: function (scope: 'private' | 'public') { return scope == 'private'; }
   };
 
   const mockApiKeySettings = {
@@ -109,6 +114,7 @@ describe('RestService', () => {
     options: {
       useEtags: true
     },
+    hasValidScope: function (scope: 'private' | 'public') { return scope == 'public'; }
   };
 
   let subs: Subscription[] = [];
