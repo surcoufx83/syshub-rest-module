@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The option of basic authentication without predefined access data means that an `Error` is no longer raised if the user name and password are both empty (`""`).
 - With basic authentication, the scope is now also checked in the Rest module, even if it is ignored by the sysHUB Rest API ([#21](https://github.com/surcoufx83/syshub-rest-module/issues/21)).
+- Improved scope check ([#23](https://github.com/surcoufx83/syshub-rest-module/issues/23))
 
 ## [5.1.0] - 2024-04-24
 
