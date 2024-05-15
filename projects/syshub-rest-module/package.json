@@ -1,6 +1,6 @@
 {
   "name": "syshub-rest-module",
-  "version": "5.2.0",
+  "version": "5.2.1",
   "description": "This package provides a generic library for the communication from an Angular SPA with a NT-Ware uniFLOW sysHUB backend server based on HTTPS Rest API with OAuth2 flow.",
   "keywords": [
     "sysHUB",

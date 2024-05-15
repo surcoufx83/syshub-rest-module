@@ -684,7 +684,13 @@ export type SyshubWorkflowModel = {
     linkFromPortIdProperty: 'fromPort';
     linkToPortIdProperty: 'toPort';
     modelData: SyshubWorkflowExtended;
-    nodeDataArray: (GraphModelAnnotationObject | GraphModelDecisionObject | GraphModelEndObject | GraphModelProcessObject | GraphModelStartObject)[];
+    nodeDataArray: (GraphModelAnnotationObject |
+        GraphModelCElementObject |
+        GraphModelDecisionObject |
+        GraphModelEndObject |
+        GraphModelProcessObject |
+        GraphModelStartObject |
+        GraphModelWorkflowObject)[];
 }
 
 /** This object defines a workflow element of type Process */
