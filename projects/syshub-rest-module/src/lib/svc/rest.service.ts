@@ -1201,11 +1201,12 @@ export class RestService {
    * @returns Object of type *SyshubWorkflowExecution* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getWorkflowExecution(uuid: string, clean: boolean = false): Observable<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified> {
+  public getWorkflowExecution(uuid: string, clean: boolean = false, dictionaryKeys?: '%' | string[]): Observable<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified> {
     let subject: Subject<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified> = new Subject<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`workflows/execute/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+    const dict = !dictionaryKeys ? '' : `?dictionaryKeys=${encodeURIComponent(!Array.isArray(dictionaryKeys) ? dictionaryKeys : dictionaryKeys.join(';'))}`;
+    this.get(`workflows/execute/${encodeURIComponent(uuid)}${dict}`, undefined, clean).subscribe((response) => {
       if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubWorkflowExecution>response.content);
       }
