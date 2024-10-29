@@ -16,8 +16,8 @@
     "url": "https://github.com/surcoufx83/syshub-rest-module"
   },
   "peerDependencies": {
-    "@angular/common": "^17",
-    "@angular/core": "^17"
+    "@angular/common": ">=17",
+    "@angular/core": ">=17"
   },
   "dependencies": {
     "tslib": "^2.6.2"
