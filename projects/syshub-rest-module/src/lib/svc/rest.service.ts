@@ -1316,13 +1316,18 @@ export class RestService {
   }
 
   /**
-   * In case of an arror in get(), post(), patch(), etc... this method creates the
-   * subject error status that is returned to the caller.
+   * In case of an error in get(), post(), patch(), etc... this method creates the
+   * subject error status that is returned to the caller. If the error is 401/Unathorized,
+   * the renewal of the token is issued.
    * @param subject The subject to be set with the error.
    * @param e The error response from the call to the server.
    */
   private handleError(subject: Subject<Response>, e: HttpErrorResponse, refreshSubscription?: Subscription): void {
     refreshSubscription?.unsubscribe();
+    if (e.status === HttpStatusCode.Unauthorized) {
+      this.refresh();
+    }
+
     subject.next({
       content: e.error,
       status: e.status,
@@ -1710,8 +1715,9 @@ export class RestService {
    * Private method which handles the automatic refresh of a session.
    */
   private refresh(): void {
-    if (this.isRefreshing$.value)
+    if (this.isRefreshing$.value || !this.settings.useOAuth)
       return;
+
     this.isRefreshing$.next(true);
     let body: string = `grant_type=refresh_token&refresh_token=${this.session.getRefreshToken()}&`
       + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
