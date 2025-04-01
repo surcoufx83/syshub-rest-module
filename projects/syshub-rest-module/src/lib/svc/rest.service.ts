@@ -1201,11 +1201,12 @@ export class RestService {
    * @returns Object of type *SyshubWorkflowExecution* or *304* if not modified; *MissingScopeError* or *StatusNotExpectedError* in case of an error.
    * @throws MissingScopeError In case that access to public Rest API has not been granted and throw errors has been enabled in settings.
    */
-  public getWorkflowExecution(uuid: string, clean: boolean = false): Observable<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified> {
+  public getWorkflowExecution(uuid: string, clean: boolean = false, dictionaryKeys?: '%' | string[]): Observable<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified> {
     let subject: Subject<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified> = new Subject<SyshubWorkflowExecution | Error | HttpStatusCode.NotModified>();
     if (!this.requirePublicScope(subject))
       return subject;
-    this.get(`workflows/execute/${encodeURIComponent(uuid)}`, undefined, clean).subscribe((response) => {
+    const dict = !dictionaryKeys ? '' : `?dictionaryKeys=${encodeURIComponent(!Array.isArray(dictionaryKeys) ? dictionaryKeys : dictionaryKeys.join(';'))}`;
+    this.get(`workflows/execute/${encodeURIComponent(uuid)}${dict}`, undefined, clean).subscribe((response) => {
       if (!this.handleResponseCode(subject, response, HttpStatusCode.Ok)) {
         subject.next(<SyshubWorkflowExecution>response.content);
       }
@@ -1315,13 +1316,18 @@ export class RestService {
   }
 
   /**
-   * In case of an arror in get(), post(), patch(), etc... this method creates the
-   * subject error status that is returned to the caller.
+   * In case of an error in get(), post(), patch(), etc... this method creates the
+   * subject error status that is returned to the caller. If the error is 401/Unathorized,
+   * the renewal of the token is issued.
    * @param subject The subject to be set with the error.
    * @param e The error response from the call to the server.
    */
   private handleError(subject: Subject<Response>, e: HttpErrorResponse, refreshSubscription?: Subscription): void {
     refreshSubscription?.unsubscribe();
+    if (e.status === HttpStatusCode.Unauthorized) {
+      this.refresh();
+    }
+
     subject.next({
       content: e.error,
       status: e.status,
@@ -1709,8 +1715,9 @@ export class RestService {
    * Private method which handles the automatic refresh of a session.
    */
   private refresh(): void {
-    if (this.isRefreshing$.value)
+    if (this.isRefreshing$.value || !this.settings.useOAuth)
       return;
+
     this.isRefreshing$.next(true);
     let body: string = `grant_type=refresh_token&refresh_token=${this.session.getRefreshToken()}&`
       + `scope=${this.settings!.oauth!.scope}&client_id=${this.settings!.oauth!.clientId}&client_secret=${encodeURIComponent(this.settings!.oauth!.clientSecret!)}`;
